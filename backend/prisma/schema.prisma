@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  SICK_LEAVE
+  CASUAL_LEAVE
+  UNPAID_LEAVE
+  OTHER
+}
+
+enum DayType {
+  FULL_DAY
+  FIRST_HALF
+  SECOND_HALF
+  NONE
+}
+
+model Company {
+  id       String   @id @default(cuid())
+  name     String?
+  logo     String?
+  address  String?
+
+  users    User[]
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  userName         String    @unique
+  password         String
+  team             String?
+  subteam          String?
+  role             String    @default("user")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  companyId        String?
+  company          Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  // Self-Relation: Created By
+  createdById      String?
+  createdBy        User?      @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers     User[]     @relation("UserCreatedBy") // Users created by this user
+
+  reports          Report[]
+  leaves           Leave[]
+  userInfo         UserInfo?
+
+  totalLeaveDays   Float      @default(18)
+
+  @@map("users")
+  @@index([companyId])
+  @@index([createdById])
+}
+
+model UserInfo {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  name          String
+  phoneNumber   String?
+  address       String?
+  city          String?
+  state         String?
+  JoiningDate   DateTime?
+  Gender        String?
+  DOB           DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("user_info")
+}
+
+model Report {
+  id                Int       @id @default(autoincrement())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade) 
+  punchIn           DateTime
+  punchOut          DateTime?
+  totalWorkingHours String?
+  BreakTime         String?
+  note              String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("reports")
+}
+
+model LeaveDay {
+  id        Int       @id @default(autoincrement())
+  date      DateTime  @db.Date
+  leaveType DayType
+  leave     Leave     @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  leaveId   Int
+
+  @@unique([date, leaveId]) 
+}
+
+model Leave {
+  id                 Int         @id @default(autoincrement())
+  userId             String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade) 
+  startDate          DateTime    @db.Date
+  endDate            DateTime?   @db.Date
+  totalLeaveDay      Float?
+  leaveType          LeaveType
+  reason             String      @db.Text
+  status             LeaveStatus @default(PENDING)
+  appliedAt          DateTime    @default(now())
+  approvedRejectedAt DateTime?
+  adminNote          String?     @db.Text
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  days               LeaveDay[]
+  @@map("leaves")
+}
