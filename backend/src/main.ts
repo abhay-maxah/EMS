@@ -27,6 +27,7 @@ async function bootstrap() {
   const allowedOrigins = [
     'http://localhost:5173',
     'http://192.168.1.45:5173', // Replace with your IP
+    'https://employee-8a0eb.web.app/',
   ];
 
   // CORS Setup

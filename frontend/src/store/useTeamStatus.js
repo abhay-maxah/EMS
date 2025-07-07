@@ -9,7 +9,6 @@ const useTeamStatus = create((set) => ({
   fetchTeam: async ({ team = '', subTeam = '' } = {}) => {
     set({ loading: true, error: null });
 
-    // Dynamically construct params only if values exist
     const params = {};
     if (team) params.team = team;
     if (subTeam) params.subTeam = subTeam;

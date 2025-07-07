@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeaveDto, LeaveDayDto } from './dto/create-leave-dto';
-import { Leave, LeaveDay, LeaveStatus, LeaveType, User } from '@prisma/client';
+import { Leave, LeaveStatus, LeaveType, User } from '@prisma/client';
 type PartialLeave = {
   startDate: Date;
   endDate: Date | null;
@@ -57,13 +57,12 @@ export class LeaveService {
 
     // Convert date strings from DTO to Date objects for Prisma
     const parsedStartDate = new Date(startDate);
-    const parsedEndDate = new Date(endDate); // Assuming endDate is always provided now for range
+    const parsedEndDate = new Date(endDate);
 
     if (parsedStartDate > parsedEndDate) {
       throw new BadRequestException('Start date cannot be after end date.');
     }
 
-    // Validate the days array - though class-validator's ArrayMinSize handles this in DTO
     if (!days || days.length === 0) {
       throw new BadRequestException('At least one leave day must be provided.');
     }

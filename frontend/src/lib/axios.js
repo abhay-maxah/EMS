@@ -17,7 +17,7 @@ const hostname = window.location.hostname;
 // Handle both localhost and local IP (192.168.x.x)
 const baseURL = hostname === "localhost" || hostname.startsWith("192.168.")
   ? `http://${hostname}:3000` // Will be localhost or your IP like 192.168.1.45
-  : "https://api.yourdomain.com"; // 🔥 Production URL
+  : "https://employee-8a0eb.web.app/";
 
 const axiosInstance = axios.create({
   baseURL,

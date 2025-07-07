@@ -33,8 +33,7 @@ const useUserStore = create((set,get) => ({
       };
     }
   },
-  
-  
+
   loginUser: async ({ credential, password }) => {
     set({ loading: true });
     try {

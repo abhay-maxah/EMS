@@ -3,6 +3,7 @@ import useUserStore from '../store/useUserStore';
 import useReportStore from '../store/useReportStore';
 import useCompanyStore from '../store/useCompanyStore';
 import { toast } from 'react-toastify';
+import LoadingSpinner from './LoadingSpinner';
 
 const Clock = () => {
   const { user, userInfo } = useUserStore();
@@ -24,21 +25,26 @@ const Clock = () => {
 
   const getStorageKey = () => `clockState_${userId}`;
 
-  // Fetch company info on load
   useEffect(() => {
-    const fetchCompany = async () => {
-      try {
-        const companyId = user?.companyId || userInfo?.companyId;
-        if (companyId) {
-          await getCompanyById(companyId);
-        }
-      } catch (error) {
-        console.error("Failed to fetch company:", error);
-      }
-    };
+    const companyId = user?.companyId || userInfo?.companyId;
 
-    fetchCompany();
-  }, [user, userInfo, getCompanyById]);
+    if (!companyId) return;
+
+    // First, try loading from localStorage
+    const localCompanyData = localStorage.getItem("company");
+    if (localCompanyData) {
+      const parsedCompany = JSON.parse(localCompanyData);
+      if (parsedCompany && parsedCompany.id === companyId) {
+        return;
+      }
+    }
+
+    // If not in localStorage or mismatch, fetch from API
+    getCompanyById(companyId).catch((error) =>
+      console.error("Failed to fetch company:", error)
+    );
+  }, [user?.companyId, userInfo?.companyId, getCompanyById]);
+
 
   // Load clock state from localStorage
   useEffect(() => {
@@ -153,11 +159,7 @@ const Clock = () => {
   const handleResumeWork = () => setIsOnBreak(false);
 
   if (!userId) {
-    return (
-      <div className="flex justify-center items-center h-screen text-gray-600 text-lg">
-        Loading user...
-      </div>
-    );
+    return <LoadingSpinner />
   }
 
   const userName = user?.name || userInfo?.name || 'Guest';

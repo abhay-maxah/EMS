@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import axiosInstance from '../lib/axios';
-
 const useLeaveStore = create((set, get) => ({
   leaves: [],
   loading: false,
@@ -64,7 +63,6 @@ const useLeaveStore = create((set, get) => ({
           : { status: newStatus };
 
       const res = await axiosInstance.patch(`leaves/${leaveId}`, payload);
-
       return res.data;
     } catch (error) {
       throw error.response?.data?.message || 'Failed to update leave status';
