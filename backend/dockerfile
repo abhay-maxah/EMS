@@ -1,0 +1,26 @@
+# Dockerfile
+
+# Base image
+FROM node:18
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy all files
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build NestJS app
+RUN npm run build
+
+# Expose app port
+EXPOSE 3000
+
+# Start the app
+CMD ["node", "dist/main"]

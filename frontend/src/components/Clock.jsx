@@ -105,6 +105,7 @@ const Clock = () => {
     const secs = (seconds % 60).toString().padStart(2, '0');
     return `${hrs}:${mins}:${secs}`;
   };
+  const MAX_WORK_SECONDS = 17 * 3600 + 59 * 60 + 59; // 64799 seconds
 
   const getGreeting = () => {
     const hour = time.getHours();
@@ -136,7 +137,8 @@ const Clock = () => {
 
   const confirmClockOut = async () => {
     try {
-      const totalWorkingHours = formatWorkDuration(workSeconds);
+      let cappedWorkSeconds = workSeconds > MAX_WORK_SECONDS ? MAX_WORK_SECONDS : workSeconds;
+      const totalWorkingHours = formatWorkDuration(cappedWorkSeconds);
       await updateReport(totalWorkingHours, noteInput || 'No note');
 
       setIsClockedIn(false);
