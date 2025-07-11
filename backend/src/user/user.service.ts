@@ -83,8 +83,7 @@ export class UserService {
    * @param id The ID of the user to update.
    * @param updateUserDto Data to update the user.
    * @returns The updated user.
-   */ // src/users/user.service.ts
-  // src/users/user.service.ts
+   **/
   async updateUserWithInfo(id: string, dto: UpdateUserDto) {
     const { userInfo, ...userFields } = dto;
 

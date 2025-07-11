@@ -19,14 +19,15 @@ const formatDateTime = (dateString) => {
 
 const ViewWorkReport = () => {
   const { user, userInfo } = useUserStore();
-  const { fetchUserReports, reports } = useReportStore();
+  const { fetchUserReports } = useReportStore(); // only use fetchUserReports
   const userId = user?.id || userInfo?.id;
 
-  const [email, setEmail] = useState('');
+  const [reports, setReports] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [dateFilter, setDateFilter] = useState('All');
+  const [dateRange, setDateRange] = useState({ startDate: null, endDate: null });
 
   const [hoveredNote, setHoveredNote] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -52,9 +53,19 @@ const ViewWorkReport = () => {
       }
 
       const result = await fetchUserReports(userId, page, apiDateRange);
+
+      setReports(result.data || []);
       setCurrentPage(result.currentPage);
       setTotalPages(result.totalPages);
-      setEmail(result.email);
+
+      if (result.date?.startDate && result.date?.endDate) {
+        setDateRange({
+          startDate: result.date.startDate,
+          endDate: result.date.endDate,
+        });
+      } else {
+        setDateRange({ startDate: null, endDate: null });
+      }
     } catch (error) {
       toast.error('Failed to load work reports');
     } finally {
@@ -116,6 +127,15 @@ const ViewWorkReport = () => {
           <option value="Last3Months">Last 3 Months</option>
         </select>
       </div>
+
+      {/* ✅ Show selected start/end date */}
+      {dateFilter !== 'All' && dateRange.startDate && dateRange.endDate && (
+        <div className="mb-4 text-gray-600">
+          Showing reports from{' '}
+          <span className="font-medium">{formatDateTime(dateRange.startDate)}</span> to{' '}
+          <span className="font-medium">{formatDateTime(dateRange.endDate)}</span>
+        </div>
+      )}
 
       {/* 🔄 Loading State */}
       {loading ? (
@@ -198,8 +218,8 @@ const ViewWorkReport = () => {
               key={idx}
               onClick={() => handlePageChange(idx + 1)}
               className={`px-4 py-2 rounded-md ${currentPage === idx + 1
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 hover:bg-gray-300'
                 }`}
             >
               {idx + 1}

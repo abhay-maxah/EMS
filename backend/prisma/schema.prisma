@@ -32,7 +32,6 @@ model Company {
   name     String?
   logo     String?
   address  String?
-
   users    User[]
 }
 

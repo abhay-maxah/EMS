@@ -106,28 +106,39 @@ export class ReportController {
     @Query('dateRange') dateRange: string = 'all',
   ) {
     let startDate: Date | undefined;
+    let endDate: Date | undefined;
     const now = new Date();
 
     switch (dateRange.toLowerCase()) {
       case '1week':
         startDate = new Date(now);
         startDate.setDate(now.getDate() - 7);
+        endDate = now;
         break;
       case '1month':
         startDate = new Date(now);
         startDate.setMonth(now.getMonth() - 1);
+        endDate = now;
         break;
       case '3months':
         startDate = new Date(now);
         startDate.setMonth(now.getMonth() - 3);
+        endDate = now;
         break;
       case 'all':
         startDate = undefined;
+        endDate = undefined;
         break;
       default:
         throw new BadRequestException('Invalid dateRange value');
     }
 
-    return this.reportService.findMyReports(userId, page, limit, startDate);
+    return this.reportService.findMyReports(
+      userId,
+      page,
+      limit,
+      startDate,
+      endDate,
+    );
   }
 }

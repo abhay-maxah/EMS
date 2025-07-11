@@ -204,6 +204,7 @@ export class ReportService {
     startDate?: Date,
   ): Promise<{
     data: any[];
+
     totalPages: number;
     currentPage: number;
   }> {
@@ -215,7 +216,7 @@ export class ReportService {
         ...(name !== 'All' &&
           name.trim() !== '' && {
             userName: {
-              contains: name
+              contains: name,
             },
           }),
       },
@@ -287,20 +288,24 @@ export class ReportService {
     page = 1,
     limit = 10,
     startDate?: Date,
+    endDate?: Date,
   ): Promise<{
     data: any[];
+    date: any;
     totalPages: number;
     currentPage: number;
   }> {
     const skip = (page - 1) * limit;
 
-    const dateFilter = startDate
-      ? {
-          createdAt: {
-            gte: startDate,
-          },
-        }
-      : {};
+    const dateFilter =
+      startDate && endDate
+        ? {
+            createdAt: {
+              gte: startDate,
+              lte: endDate,
+            },
+          }
+        : {};
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.report.findMany({
@@ -334,6 +339,7 @@ export class ReportService {
 
     return {
       data,
+      date: { startDate: startDate, endDate: endDate },
       totalPages,
       currentPage: page,
     };

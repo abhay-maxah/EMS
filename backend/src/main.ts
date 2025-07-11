@@ -62,7 +62,7 @@ import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
 
 // ✅ Patch for `crypto.randomUUID()` used in @nestjs/schedule
-(globalThis as any).crypto = require('crypto');
+// (globalThis as any).crypto = require('crypto');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

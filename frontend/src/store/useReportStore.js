@@ -54,14 +54,7 @@ const useReportStore = create((set, get) => ({
           dateRange,
         },
       });
-
-      const { data, totalPages, currentPage, email } = response.data;
-
-      set(() => ({
-        reports: data,
-      }));
-
-      return { data, totalPages, currentPage, email };
+      return response.data;
     } catch (error) {
       console.error('Error fetching user reports:', error.response?.data || error.message);
       throw error;
