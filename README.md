@@ -171,26 +171,4 @@ project-root/
 │   ├── package.json            # Frontend dependencies
 │   └── tailwind.config.js      # TailwindCSS (or other styling lib) config
 ```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Follow these steps:
-
-1. Fork the repository.
-2. Create a new branch:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. Commit your changes:
-   ```bash
-   git commit -m 'feat: Add new feature'
-   ```
-4. Push the branch:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-5. Open a **Pull Request**.
-
 ---
