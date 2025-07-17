@@ -59,13 +59,13 @@ export class ReportController {
   @Roles(UserRole.ADMIN)
   async findAll(
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
+    @Query('limit') limit: string = '15',
     @Query('name') name: string = 'All',
     @Query('dateRange') dateRange: string = 'ALL', // default to ALL
     @CurrentUser() user: User,
   ) {
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
+    const pageNumber = parseInt(page, 15);
+    const limitNumber = parseInt(limit, 15);
 
     let startDate: Date | undefined;
     const now = new Date();
@@ -102,7 +102,7 @@ export class ReportController {
   async findMyReports(
     @Param('userId') userId: string,
     @Query('page') page: 1,
-    @Query('limit') limit: 10,
+    @Query('limit') limit: 15,
     @Query('dateRange') dateRange: string = 'all',
   ) {
     let startDate: Date | undefined;

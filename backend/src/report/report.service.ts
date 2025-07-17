@@ -198,7 +198,7 @@ export class ReportService {
   // Finds all reports. (Admin only)
   async findAll(
     page = 1,
-    limit = 10,
+    limit = 15,
     name = 'All',
     companyId: string,
     startDate?: Date,
@@ -286,7 +286,7 @@ export class ReportService {
   async findMyReports(
     userId: string,
     page = 1,
-    limit = 10,
+    limit = 15,
     startDate?: Date,
     endDate?: Date,
   ): Promise<{

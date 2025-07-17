@@ -117,6 +117,7 @@ export class LeaveService {
 
     return newLeave;
   }
+
   async getUserInfo(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -135,23 +136,82 @@ export class LeaveService {
   }
   async getAllLeavForUser(
     currentUser: User,
-  ): Promise<{ info: any; leave: PartialLeave[] }> {
-    const info = await this.getUserInfo(currentUser.id);
-    const leave = await this.prisma.leave.findMany({
-      where: { userId: currentUser.id },
-      select: {
-        id: true,
-        startDate: true,
-        endDate: true,
-        status: true,
-        leaveType: true,
-        totalLeaveDay: true,
-      },
-    });
-    return { info, leave };
+    options: {
+      page?: number;
+      limit?: number;
+      year?: 'all' | 'current' | 'last';
+    } = {},
+  ): Promise<{
+    leave: PartialLeave[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const { page = 1, limit = 10, year = 'all' } = options;
+
+    const now = new Date();
+    let startDateFilter: Date | undefined;
+    let endDateFilter: Date | undefined;
+
+    if (year === 'current') {
+      startDateFilter = new Date(now.getFullYear(), 0, 1); // Jan 1st current year
+      endDateFilter = new Date(now.getFullYear(), 11, 31); // Dec 31st current year
+    } else if (year === 'last') {
+      startDateFilter = new Date(now.getFullYear() - 1, 0, 1); // Jan 1st last year
+      endDateFilter = new Date(now.getFullYear() - 1, 11, 31); // Dec 31st last year
+    }
+
+    const whereClause: any = {
+      userId: currentUser.id,
+    };
+
+    if (startDateFilter && endDateFilter) {
+      whereClause.startDate = {
+        gte: startDateFilter,
+        lte: endDateFilter,
+      };
+    }
+
+    const [leave, total] = await Promise.all([
+      this.prisma.leave.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          status: true,
+          leaveType: true,
+          totalLeaveDay: true,
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { id: 'desc' },
+      }),
+      this.prisma.leave.count({
+        where: whereClause,
+      }),
+    ]);
+
+    return {
+      leave,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
-  async getAllLeavForAdmin(companyId: string): Promise<
-    {
+
+  async getAllLeavForAdmin(
+    companyId: string,
+    options: {
+      page: number;
+      limit: number;
+      year: 'all' | 'current' | 'last';
+      userName?: string;
+    },
+  ): Promise<{
+    data: {
       id: number;
       startDate: Date;
       endDate: Date | null;
@@ -159,18 +219,47 @@ export class LeaveService {
       leaveType: string;
       totalLeaveDay: number | null;
       user: {
+        userName: string;
         userInfo: {
           name: string;
         } | null;
       };
-    }[]
-  > {
-    const leaves = await this.prisma.leave.findMany({
-      where: {
-        user: {
-          companyId: companyId, // ✅ Filter by companyId through the user
-        },
+    }[];
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+  }> {
+    const { page, limit, year, userName } = options;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    // Year filter logic
+    let dateFilter: { startDate?: any } = {};
+    if (year === 'current') {
+      dateFilter.startDate = {
+        gte: new Date(currentYear, 0, 1),
+        lte: new Date(currentYear, 11, 31, 23, 59, 59),
+      };
+    } else if (year === 'last') {
+      dateFilter.startDate = {
+        gte: new Date(currentYear - 1, 0, 1),
+        lte: new Date(currentYear - 1, 11, 31, 23, 59, 59),
+      };
+    }
+
+    // Combined filter: companyId, optional userName, and date
+    const where = {
+      ...dateFilter,
+      user: {
+        companyId,
+        ...(userName ? { userName: { equals: userName } } : {}),
       },
+    };
+
+    // Get paginated leave data
+    const data = await this.prisma.leave.findMany({
+      where,
       select: {
         id: true,
         startDate: true,
@@ -180,6 +269,7 @@ export class LeaveService {
         totalLeaveDay: true,
         user: {
           select: {
+            userName: true,
             userInfo: {
               select: {
                 name: true,
@@ -188,9 +278,22 @@ export class LeaveService {
           },
         },
       },
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: {
+        id: 'desc',
+      },
     });
 
-    return leaves;
+    // Count total matching records
+    const totalCount = await this.prisma.leave.count({ where });
+
+    return {
+      data,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page,
+    };
   }
 
   async getLeaveById(id: string): Promise<{
@@ -268,12 +371,24 @@ export class LeaveService {
     }
 
     const currentStatus = leave.status;
+    const isUnpaidLeave = leave.leaveType === LeaveType.UNPAID_LEAVE;
 
-    // If the status is already APPROVED and changing to something else → refund leave
+    // If status is changing from APPROVED to something else → refund if not unpaid
     if (
       currentStatus === LeaveStatus.APPROVED &&
       status !== LeaveStatus.APPROVED
     ) {
+      if (isUnpaidLeave) {
+        return await this.prisma.leave.update({
+          where: { id: leave.id },
+          data: {
+            status,
+            adminNote,
+            approvedRejectedAt: new Date(),
+          },
+        });
+      }
+
       const [updatedLeave] = await this.prisma.$transaction([
         this.prisma.leave.update({
           where: { id: leave.id },
@@ -296,13 +411,13 @@ export class LeaveService {
       return updatedLeave;
     }
 
-    // If changing to APPROVED from non-approved → check balance & subtract leave
+    // If changing to APPROVED from non-approved → subtract leave if not unpaid
     if (status === LeaveStatus.APPROVED) {
-      if (leave.user.totalLeaveDays < leave.totalLeaveDay) {
+      if (!isUnpaidLeave && leave.user.totalLeaveDays < leave.totalLeaveDay) {
         throw new BadRequestException('Insufficient leave balance');
       }
 
-      const [updatedLeave] = await this.prisma.$transaction([
+      const transactionItems: any[] = [
         this.prisma.leave.update({
           where: { id: leave.id },
           data: {
@@ -311,21 +426,27 @@ export class LeaveService {
             approvedRejectedAt: new Date(),
           },
         }),
-        this.prisma.user.update({
-          where: { id: leave.userId },
-          data: {
-            totalLeaveDays: {
-              decrement: leave.totalLeaveDay,
-            },
-          },
-        }),
-      ]);
+      ];
 
+      if (!isUnpaidLeave) {
+        transactionItems.push(
+          this.prisma.user.update({
+            where: { id: leave.userId },
+            data: {
+              totalLeaveDays: {
+                decrement: leave.totalLeaveDay,
+              },
+            },
+          }),
+        );
+      }
+
+      const [updatedLeave] = await this.prisma.$transaction(transactionItems);
       return updatedLeave;
     }
 
-    // All other normal updates (no change in leave balance)
-    const updatedLeave = await this.prisma.leave.update({
+    // All other status changes (e.g., REJECTED -> PENDING), no balance change
+    return await this.prisma.leave.update({
       where: { id: leave.id },
       data: {
         status,
@@ -333,7 +454,5 @@ export class LeaveService {
         approvedRejectedAt: new Date(),
       },
     });
-
-    return updatedLeave;
   }
 }

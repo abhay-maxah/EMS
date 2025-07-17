@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import useLeaveStore from '../store/useLeaveStore';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/commonComponent/Pagination';
 
 const formatDate = (isoDate) => {
   if (!isoDate) return '-';
@@ -16,45 +17,54 @@ const ViewPastLeaves = () => {
   const fetchLeaves = useLeaveStore((state) => state.fetchLeaves);
   const fetchLeaveById = useLeaveStore((state) => state.fetchLeaveById);
 
-  const [leaves, setLeaves] = useState([]);
-  const [filteredLeaves, setFilteredLeaves] = useState([]);
+  const [allLeaves, setAllLeaves] = useState([]); // unfiltered from backend
+  const [filteredLeaves, setFilteredLeaves] = useState([]); // filtered by status
   const [selectedLeave, setSelectedLeave] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [statusFilter, setStatusFilter] = useState('All');
+  const [yearFilter, setYearFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const leavesPerPage = 5;
+  const [totalPages, setTotalPages] = useState(1);
+
+  const leavesPerPage = 10;
 
   useEffect(() => {
     const getLeaves = async () => {
       setLoading(true);
       try {
-        const data = await fetchLeaves();
-        setLeaves(data.leave || []);
+        const data = await fetchLeaves({
+          page: currentPage,
+          limit: leavesPerPage,
+          year: yearFilter,
+        });
+
+        const backendLeaves = data.leave || [];
+        setAllLeaves(backendLeaves);
+        setTotalPages(data.totalPages || 1);
       } catch (err) {
         setError(err?.message || 'Failed to fetch leaves');
       } finally {
         setLoading(false);
       }
     };
+
     getLeaves();
-  }, []);
+  }, [yearFilter, currentPage]);
 
-  // Filter logic
+  // Apply client-side status filtering
   useEffect(() => {
-    let temp = [...leaves];
-
-    if (statusFilter !== 'All') {
-      temp = temp.filter(
+    if (statusFilter === 'All') {
+      setFilteredLeaves(allLeaves);
+    } else {
+      const filtered = allLeaves.filter(
         (l) => l.status?.toLowerCase() === statusFilter.toLowerCase()
       );
+      setFilteredLeaves(filtered);
     }
-
-    setFilteredLeaves(temp);
-    setCurrentPage(1);
-  }, [statusFilter, leaves]);
+  }, [statusFilter, allLeaves]);
 
   const handleRowClick = async (leaveId) => {
     try {
@@ -65,17 +75,11 @@ const ViewPastLeaves = () => {
     }
   };
 
-  // Pagination
-  const indexOfLast = currentPage * leavesPerPage;
-  const indexOfFirst = indexOfLast - leavesPerPage;
-  const currentLeaves = filteredLeaves.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(filteredLeaves.length / leavesPerPage);
-
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-1 h-8 bg-blue-600 rounded"></div>
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-800">
+        <h2 className="text-3xl md:text-4xl font-bold text-black-800">
           Past Leave Records
         </h2>
       </div>
@@ -83,38 +87,61 @@ const ViewPastLeaves = () => {
       {loading && <LoadingSpinner />}
       {error && <p className="text-red-500">{error}</p>}
 
-      {/* Status Filter */}
-      <div className="flex justify-end mb-5">
-        <div className="relative w-full md:w-48">
-          <select
-            className="w-full appearance-none border border-gray-300 rounded-lg px-4 py-2 pr-8 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="All">All Status</option>
-            <option value="Approved">Approved</option>
-            <option value="Pending">Pending</option>
-            <option value="Rejected">Rejected</option>
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <svg
-              className="w-4 h-4 text-gray-500"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-6 mb-6">
+        {/* Year Filter */}
+        <div className="flex items-center space-x-2">
+          <label htmlFor="yearFilter" className="text-black-700 font-medium">
+            Filter By Year:
+          </label>
+          <div className="relative w-40">
+            <select
+              id="yearFilter"
+              className="appearance-none w-full border border-black-300 rounded-lg px-3 py-2 pr-8 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={yearFilter}
+              onChange={(e) => {
+                setYearFilter(e.target.value);
+                setCurrentPage(1);
+              }}
             >
-              <path
-                fillRule="evenodd"
-                d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.06z"
-                clipRule="evenodd"
-              />
-            </svg>
+              <option value="all">All Years</option>
+              <option value="current">Current Year</option>
+              <option value="last">Last Year</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-black-500">
+              ▼
+            </div>
+          </div>
+        </div>
+
+        {/* Status Filter */}
+        <div className="flex items-center space-x-2">
+          <label htmlFor="statusFilter" className="text-black-700 font-medium">
+            Filter By Status:
+          </label>
+          <div className="relative w-40">
+            <select
+              id="statusFilter"
+              className="appearance-none w-full border border-black-300 rounded-lg px-3 py-2 pr-8 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="All">All</option>
+              <option value="Approved">Approved</option>
+              <option value="Pending">Pending</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-black-500">
+              ▼
+            </div>
           </div>
         </div>
       </div>
 
+
       {/* Table */}
       <div className="overflow-x-auto rounded-xl shadow-md">
-        <table className="w-full table-auto border border-gray-300">
+        <table className="w-full table-auto border border-black-300">
           <thead className="bg-blue-50">
             <tr>
               <th className="p-3 border">S.No</th>
@@ -126,14 +153,14 @@ const ViewPastLeaves = () => {
             </tr>
           </thead>
           <tbody>
-            {currentLeaves.length > 0 ? (
-              currentLeaves.map((leave, index) => (
+            {filteredLeaves.length > 0 ? (
+              filteredLeaves.map((leave, index) => (
                 <tr
                   key={leave.id}
-                  className="text-center text-gray-700 cursor-pointer hover:bg-blue-50 transition"
+                  className="text-center text-black-700 cursor-pointer hover:bg-blue-50 transition"
                   onClick={() => handleRowClick(leave.id)}
                 >
-                  <td className="p-3 border">{indexOfFirst + index + 1}</td>
+                  <td className="p-3 border">{(currentPage - 1) * leavesPerPage + index + 1}</td>
                   <td className="p-3 border">{formatDate(leave.startDate)}</td>
                   <td className="p-3 border">{formatDate(leave.endDate)}</td>
                   <td className="p-3 border">
@@ -154,10 +181,7 @@ const ViewPastLeaves = () => {
               ))
             ) : (
               <tr>
-                <td
-                  colSpan="6"
-                  className="p-5 text-center text-gray-500"
-                >
+                  <td colSpan="6" className="p-5 text-center text-black-500">
                   No leave records found.
                 </td>
               </tr>
@@ -168,38 +192,11 @@ const ViewPastLeaves = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-5">
-          <button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            className="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50"
-            disabled={currentPage === 1}
-          >
-            Prev
-          </button>
-
-          {[...Array(totalPages)].map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentPage(idx + 1)}
-              className={`px-3 py-1 rounded-md ${currentPage === idx + 1
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300'
-                }`}
-            >
-              {idx + 1}
-            </button>
-          ))}
-
-          <button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            className="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50"
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       {/* Modal */}
@@ -243,7 +240,8 @@ const ViewPastLeaves = () => {
                 <ul className="list-disc list-inside space-y-1">
                   {selectedLeave.leave?.days?.map((day) => (
                     <li key={day.id}>
-                      {formatDate(day.date)} - {day.leaveType.replace(/_/g, ' ')}
+                      {formatDate(day.date)} -{' '}
+                      {day.leaveType.replace(/_/g, ' ')}
                     </li>
                   ))}
                 </ul>
@@ -252,7 +250,7 @@ const ViewPastLeaves = () => {
 
             <button
               onClick={() => setSelectedLeave(null)}
-              className="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 rounded-full p-1"
+              className="absolute top-2 right-2 bg-black-200 hover:bg-black-300 rounded-full p-1"
             >
               ✕
             </button>

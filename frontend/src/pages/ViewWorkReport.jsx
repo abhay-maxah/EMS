@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import useUserStore from '../store/useUserStore';
 import useReportStore from '../store/useReportStore';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/commonComponent/pagination';
 
 const formatDateTime = (dateString) => {
   if (!dateString) return '—';
@@ -19,26 +21,28 @@ const formatDateTime = (dateString) => {
 
 const ViewWorkReport = () => {
   const { user, userInfo } = useUserStore();
-  const { fetchUserReports } = useReportStore(); // only use fetchUserReports
+  const { fetchUserReports } = useReportStore();
   const userId = user?.id || userInfo?.id;
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentPage = parseInt(searchParams.get('page')) || 1;
+  const dateFilter = searchParams.get('dateRange') || 'All';
+
   const [reports, setReports] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [dateFilter, setDateFilter] = useState('All');
   const [dateRange, setDateRange] = useState({ startDate: null, endDate: null });
 
   const [hoveredNote, setHoveredNote] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState(false);
 
-  const loadReports = async (page) => {
+  const loadReports = async (page, range) => {
     try {
       setLoading(true);
-
       let apiDateRange;
-      switch (dateFilter) {
+
+      switch (range) {
         case 'LastWeek':
           apiDateRange = '1week';
           break;
@@ -55,8 +59,7 @@ const ViewWorkReport = () => {
       const result = await fetchUserReports(userId, page, apiDateRange);
 
       setReports(result.data || []);
-      setCurrentPage(result.currentPage);
-      setTotalPages(result.totalPages);
+      setTotalPages(result.totalPages || 1);
 
       if (result.date?.startDate && result.date?.endDate) {
         setDateRange({
@@ -75,14 +78,19 @@ const ViewWorkReport = () => {
 
   useEffect(() => {
     if (userId) {
-      loadReports(currentPage);
+      loadReports(currentPage, dateFilter);
     }
   }, [userId, currentPage, dateFilter]);
 
   const handlePageChange = (page) => {
     if (page > 0 && page <= totalPages) {
-      setCurrentPage(page);
+      setSearchParams({ page, dateRange: dateFilter });
     }
+  };
+
+  const handleDateFilterChange = (e) => {
+    const newFilter = e.target.value;
+    setSearchParams({ page: 1, dateRange: newFilter }); // Reset to page 1
   };
 
   const handleMouseMove = (e, note) => {
@@ -115,10 +123,7 @@ const ViewWorkReport = () => {
         <select
           id="dateFilter"
           value={dateFilter}
-          onChange={(e) => {
-            setDateFilter(e.target.value);
-            setCurrentPage(1); // reset to first page
-          }}
+          onChange={handleDateFilterChange}
           className="p-2 border border-gray-300 rounded-md"
         >
           <option value="All">All</option>
@@ -192,7 +197,7 @@ const ViewWorkReport = () => {
         </div>
       )}
 
-      {/* Tooltip */}
+      {/* 🛠️ Tooltip */}
       {showTooltip && hoveredNote && (
         <div
           className="fixed z-50 bg-blue-50 text-black text-sm px-4 py-2 rounded-lg shadow-lg pointer-events-none"
@@ -202,38 +207,13 @@ const ViewWorkReport = () => {
         </div>
       )}
 
-      {/* Pagination */}
+      {/* ✅ Reusable Pagination Component */}
       {!loading && totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-6 flex-wrap">
-          <button
-            disabled={currentPage <= 1}
-            onClick={() => handlePageChange(currentPage - 1)}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 rounded-md"
-          >
-            Prev
-          </button>
-
-          {[...Array(totalPages)].map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => handlePageChange(idx + 1)}
-              className={`px-4 py-2 rounded-md ${currentPage === idx + 1
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 hover:bg-gray-300'
-                }`}
-            >
-              {idx + 1}
-            </button>
-          ))}
-
-          <button
-            disabled={currentPage >= totalPages}
-            onClick={() => handlePageChange(currentPage + 1)}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 rounded-md"
-          >
-            Next
-          </button>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       )}
     </div>
   );

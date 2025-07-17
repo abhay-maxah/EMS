@@ -5,33 +5,44 @@ const useLeaveStore = create((set, get) => ({
   loading: false,
   error: null,
 
-  fetchLeaves: async () => {
+  fetchLeaves: async ({ page = 1, limit = 10, year = 'all' } = {}) => {
     set({ loading: true, error: null });
     try {
-      const res = await axiosInstance.get('/leaves');
-        return res.data;
-    } catch (err) {
-      set({ error: err?.response?.data?.message || 'Failed to fetch leaves', loading: false });
-    }
-  },
-  fetchLeavesForAdmin: async () => {
-    set({ loading: true, error: null });
-    try {
-      const res = await axiosInstance.get('/leaves/admin');
+      const res = await axiosInstance.get('/leaves', {
+        params: { page, limit, year },
+      });
+
       return res.data;
     } catch (err) {
-      set({ error: err?.response?.data?.message || 'Failed to fetch leaves', loading: false });
+      set({
+        error: err?.response?.data?.message || 'Failed to fetch leaves',
+        loading: false,
+      });
+    }
+  },
+  fetchLeavesForAdmin: async (params = { page: 1, limit: 10, userName: undefined, year: 'all' }) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await axiosInstance.get('/leaves/AllLeavesForAdmin', {
+        params,
+      });
+
+      const { data, totalCount, totalPages, currentPage } = res.data;
+      set({ loading: false });
+      return { data, totalCount, totalPages, currentPage };
+    } catch (err) {
+      set({
+        error: err?.response?.data?.message || 'Failed to fetch leaves',
+        loading: false,
+      });
     }
   },
   addLeave: async (leavePayload) => {
     set({ loading: true, error: null });
+
     try {
       const res = await axiosInstance.post('/leaves', leavePayload);
-      set((state) => ({
-        leaves: [...state.leaves, res.data],
-        loading: false
-      }));
-      return res.data;
+      return { success: true, data: res.data }; 
     } catch (err) {
       const resMessage = err?.response?.data?.message;
       const message = Array.isArray(resMessage)
@@ -39,10 +50,10 @@ const useLeaveStore = create((set, get) => ({
         : resMessage || 'Error adding leave';
 
       set({ error: message, loading: false });
-      return err;
+
+      return { success: false, error: message }; 
     }
   },
-  
   fetchLeaveById: async (leaveId) => {
     set({ loading: true, error: null });
     try {

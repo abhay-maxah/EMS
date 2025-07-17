@@ -33,14 +33,14 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
   const pageNumbers = generatePageNumbers();
 
   return (
-    <div className="flex justify-center items-center gap-2 mt-6 flex-wrap">
+    <div className="flex justify-center items-center gap-2 mt-8 flex-wrap">
       {/* Prev Button */}
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 rounded-md"
+        className="px-3 py-2 rounded-xl border border-gray-300 shadow-sm transition-all duration-200 hover:bg-gray-100 disabled:opacity-40"
       >
-        Prev
+        ←
       </button>
 
       {/* Page Numbers */}
@@ -49,15 +49,19 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
           <button
             key={index}
             onClick={() => onPageChange(page)}
-            className={`px-4 py-2 rounded-md ${currentPage === page
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 hover:bg-gray-300'
+            className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium transition-all duration-200
+              ${currentPage === page
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-white border border-gray-300 hover:bg-gray-100'
               }`}
           >
             {page}
           </button>
         ) : (
-          <span key={index} className="px-2 text-gray-500">
+            <span
+              key={index}
+              className="w-10 h-10 flex items-center justify-center text-gray-400"
+            >
             ...
           </span>
         )
@@ -67,9 +71,9 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 rounded-md"
+        className="px-3 py-2 rounded-xl border border-gray-300 shadow-sm transition-all duration-200 hover:bg-gray-100 disabled:opacity-40"
       >
-        Next
+        →
       </button>
     </div>
   );

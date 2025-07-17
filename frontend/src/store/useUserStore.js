@@ -16,7 +16,6 @@ const useUserStore = create((set,get) => ({
         companyId,
         createdById,
       });
-
       return { success: true, data: res.data.user };
     } catch (err) {
       set({ loading: false });

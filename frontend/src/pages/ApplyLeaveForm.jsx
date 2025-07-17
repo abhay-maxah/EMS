@@ -117,6 +117,7 @@ const ApplyLeaveForm = () => {
     const leaveTypeMap = {
       casual: 'CASUAL_LEAVE',
       sick: 'SICK_LEAVE',
+      unpaid: 'UNPAID_LEAVE',
     };
 
     const formattedStartDate = getLocalDateString(startDate);
@@ -226,6 +227,7 @@ const ApplyLeaveForm = () => {
                 >
                   <option value="casual">Casual Leave</option>
                   <option value="sick">Sick Leave</option>
+                  <option value="unpaid">Unpaid Leave</option>
                 </select>
               </div>
 

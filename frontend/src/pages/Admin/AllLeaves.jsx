@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import useLeaveStore from '../../store/useLeaveStore';
+import useUserStore from '../../store/useUserStore';
 import useCompanyStore from '../../store/useCompanyStore';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import Pagination from '../../components/commonComponent/pagination';
 
 const LeaveStatus = ['PENDING', 'APPROVED', 'REJECTED'];
 
@@ -17,32 +19,72 @@ const formatDate = (dateString) => {
 
 const AllLeaves = () => {
   const [leaves, setLeaves] = useState([]);
-  const [selectedLeave, setSelectedLeave] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [selectedLeave, setSelectedLeave] = useState(null);
   const [showAdminNoteModal, setShowAdminNoteModal] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [adminNote, setAdminNote] = useState('');
 
-  const [selectedName, setSelectedName] = useState('All');
+  const [selectedUserName, setSelectedUserName] = useState('All');
+  const [selectedYear, setSelectedYear] = useState('All');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [userList, setUserList] = useState([]);
 
   const fetchLeavesForAdmin = useLeaveStore((state) => state.fetchLeavesForAdmin);
   const fetchLeaveById = useLeaveStore((state) => state.fetchLeaveById);
   const updateLeaveStatus = useLeaveStore((state) => state.updateLeaveStatus);
+  const getUserList = useUserStore((state) => state.getUserList);
+  const isCompanyPresent = useCompanyStore((state) => state.isCompanyPresent);
 
-  const isCompanyPresent = useCompanyStore((state) => state.isCompanyPresent); // ✅ Use flag
+  const loadLeaves = async (page = 1) => {
+    setLoading(true);
+    const filters = {
+      userName: selectedUserName !== 'All' ? selectedUserName : undefined,
+      year:
+        selectedYear === 'All'
+          ? undefined
+          : selectedYear === 'Current'
+            ? 'current'
+            : 'last',
+    };
+
+    try {
+      const response = await fetchLeavesForAdmin({
+        page,
+        limit: 10,
+        ...filters,
+      });
+      if (response?.data) {
+        setLeaves(response.data);
+        setTotalPages(response.totalPages || 1);
+        setCurrentPage(response.currentPage || 1);
+      }
+    } catch (err) {
+      toast.error('Failed to fetch leave data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadLeaves = async () => {
-      setLoading(true);
-      const data = await fetchLeavesForAdmin();
-      if (data) setLeaves(data);
-      setLoading(false);
-    };
     if (isCompanyPresent) {
-      loadLeaves();
+      getUserList()
+        .then((users) => {
+          if (Array.isArray(users)) setUserList(users);
+        })
+        .catch(() => {
+          toast.error('Failed to fetch user list');
+        });
     }
-  }, [fetchLeavesForAdmin, isCompanyPresent]);
+  }, [isCompanyPresent]);
+
+  useEffect(() => {
+    if (isCompanyPresent) loadLeaves(currentPage);
+  }, [isCompanyPresent, currentPage, selectedUserName, selectedYear]);
 
   const handleRowClick = async (leaveId) => {
     const data = await fetchLeaveById(leaveId);
@@ -75,7 +117,7 @@ const AllLeaves = () => {
       setLeaves((prev) =>
         prev.map((leave) =>
           leave.id === leaveId
-            ? { ...leave, status: newStatus, adminNote: adminNote }
+            ? { ...leave, status: newStatus, adminNote }
             : leave
         )
       );
@@ -88,16 +130,6 @@ const AllLeaves = () => {
     }
   };
 
-  const uniqueNames = Array.from(
-    new Set(leaves.map((leave) => leave.user?.userInfo?.name).filter(Boolean))
-  );
-
-  const filteredLeaves =
-    selectedName === 'All'
-      ? leaves
-      : leaves.filter((leave) => leave.user?.userInfo?.name === selectedName);
-
-  // ✅ Show message if company is not present
   if (!isCompanyPresent) {
     return (
       <div className="p-6 max-w-4xl mx-auto text-center">
@@ -118,24 +150,43 @@ const AllLeaves = () => {
         </h2>
       </div>
 
-      {/* 🔥 Name Filter Dropdown */}
-      <div className="mb-4 flex items-center gap-4">
-        <label className="font-medium">Filter by Name:</label>
-        <select
-          value={selectedName}
-          onChange={(e) => setSelectedName(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-        >
-          <option value="All">All</option>
-          {uniqueNames.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
+      <div className="mb-4 flex flex-wrap gap-4 items-center">
+        <div>
+          <label className="font-medium mr-2">Filter by Username:</label>
+          <select
+            value={selectedUserName}
+            onChange={(e) => {
+              setSelectedUserName(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border rounded px-3 py-2 text-sm bg-white"
+          >
+            <option value="All">All</option>
+            {userList.map((user) => (
+              <option key={user.userName} value={user.userName}>
+                {user.userName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="font-medium mr-2">Filter by Year:</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => {
+              setSelectedYear(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border rounded px-3 py-2 text-sm bg-white"
+          >
+            <option value="All">All</option>
+            <option value="Current">Current Year</option>
+            <option value="Last">Last Year</option>
+          </select>
+        </div>
       </div>
 
-      {/* 🔥 Loading Spinner or Table */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <LoadingSpinner />
@@ -146,7 +197,7 @@ const AllLeaves = () => {
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Sr No.</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Name</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Username</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Start</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">End</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Type</th>
@@ -155,15 +206,15 @@ const AllLeaves = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredLeaves.length > 0 ? (
-                filteredLeaves.map((leave, index) => (
+                {leaves.length > 0 ? (
+                  leaves.map((leave, index) => (
                   <tr
                     key={leave.id}
                     className="hover:bg-gray-50 cursor-pointer transition"
                     onClick={() => handleRowClick(leave.id)}
                   >
-                    <td className="px-4 py-4">{index + 1}</td>
-                    <td className="px-4 py-4">{leave.user?.userInfo?.name || 'N/A'}</td>
+                    <td className="px-4 py-4">{index + 1 + (currentPage - 1) * 10}</td>
+                    <td className="px-4 py-4">{leave.user?.userName || 'N/A'}</td>
                     <td className="px-4 py-4">{formatDate(leave.startDate)}</td>
                     <td className="px-4 py-4">{formatDate(leave.endDate)}</td>
                     <td className="px-4 py-4 capitalize">
@@ -174,7 +225,7 @@ const AllLeaves = () => {
                         value={leave.status}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => handleStatusChange(leave.id, e.target.value)}
-                        className="border border-gray-300 rounded-md p-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                        className="border border-gray-300 rounded-md p-1 text-sm bg-white"
                       >
                         {LeaveStatus.map((status) => (
                           <option key={status} value={status}>
@@ -198,12 +249,22 @@ const AllLeaves = () => {
         </div>
       )}
 
-      {/* Leave Details Modal */}
+      {totalPages > 1 && (
+        <div className="mt-6">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+          />
+        </div>
+      )}
+
       {selectedLeave && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="backdrop-blur-md bg-white/90 rounded-2xl shadow-xl p-8 w-full max-w-xl">
             <h3 className="text-2xl font-semibold mb-4">Leave Details</h3>
             <div className="space-y-2">
+              <p><strong>Username:</strong> {selectedLeave.appliedBy?.userName || 'N/A'}</p>
               <p><strong>Name:</strong> {selectedLeave.appliedBy?.name || 'N/A'}</p>
               <p><strong>Email:</strong> {selectedLeave.appliedBy?.email}</p>
               <p><strong>Role:</strong> {selectedLeave.appliedBy?.role}</p>
@@ -216,16 +277,18 @@ const AllLeaves = () => {
               <p><strong>Admin Note:</strong> {selectedLeave.leave?.adminNote}</p>
             </div>
 
-            <div className="mt-4">
-              <h4 className="font-semibold mb-2">Leave Days Breakdown:</h4>
-              <ul className="list-disc list-inside space-y-1">
-                {selectedLeave.leave?.days?.map((day) => (
-                  <li key={day.id}>
-                    {formatDate(day.date)} - {day.leaveType.replace('_', ' ')}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {selectedLeave.leave?.days?.length > 0 && (
+              <div className="mt-4">
+                <h4 className="font-semibold mb-2">Leave Days Breakdown:</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {selectedLeave.leave.days.map((day) => (
+                    <li key={day.id}>
+                      {formatDate(day.date)} - {day.leaveType.replace('_', ' ')}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="mt-6 text-right">
               <button
@@ -239,7 +302,6 @@ const AllLeaves = () => {
         </div>
       )}
 
-      {/* Admin Note Modal */}
       {showAdminNoteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="backdrop-blur-md bg-white/90 rounded-2xl shadow-xl p-6 w-full max-w-md">
@@ -272,6 +334,7 @@ const AllLeaves = () => {
                 Submit
               </button>
             </div>
+
           </div>
         </div>
       )}

@@ -15,7 +15,6 @@ import ViewPastLeaves from "./pages/ViewPastLeaves";
 import AllLeaves from "./pages/Admin/AllLeaves";
 import AllReport from "./pages/Admin/AllReport";
 import UserList from "./pages/Admin/UserList";
-import SignupDetailsForm from "./components/SignupDetailsForm";
 import ProfilePage from "./pages/ProfilePage";
 import CompanyPage from "./pages/CompanyPage";
 import AddUser from "./components/AddUser";

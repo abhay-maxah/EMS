@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  Query,
 } from '@nestjs/common';
 import { LeaveService } from './leave.service';
 import { CreateLeaveDto } from './dto/create-leave-dto';
@@ -34,17 +35,39 @@ export class LeaveController {
   }
 
   @Get()
-  getAllLeaves(@CurrentUser() currentUser: User) {
-    return this.leaveService.getAllLeavForUser(currentUser);
+  @Roles(UserRole.USER, UserRole.ADMIN)
+  getAllLeaves(
+    @CurrentUser() currentUser: User,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('year') year: 'all' | 'current' | 'last' = 'all',
+  ) {
+    return this.leaveService.getAllLeavForUser(currentUser, {
+      page: Number(page),
+      limit: Number(limit),
+      year,
+    });
   }
 
-  @Get('admin')
+  @Get('AllLeavesForAdmin')
   @Roles(UserRole.ADMIN)
-  getAllLeavesForAdmin(@CurrentUser() currentUser: User) {
+  getAllLeavesForAdmin(
+    @CurrentUser() currentUser: User,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('year') year: 'all' | 'current' | 'last' = 'all',
+    @Query('userName') userName?: string,
+  ) {
     if (!currentUser.companyId) {
       throw new BadRequestException('Company ID is required.');
     }
-    return this.leaveService.getAllLeavForAdmin(currentUser.companyId);
+
+    return this.leaveService.getAllLeavForAdmin(currentUser.companyId, {
+      page: Number(page),
+      limit: Number(limit),
+      year,
+      userName,
+    });
   }
 
   @Get(':id')

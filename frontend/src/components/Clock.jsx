@@ -4,6 +4,7 @@ import useReportStore from '../store/useReportStore';
 import useCompanyStore from '../store/useCompanyStore';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
+import { Link } from 'react-router-dom';
 
 const Clock = () => {
   const { user, userInfo } = useUserStore();
@@ -177,15 +178,28 @@ const Clock = () => {
       {/* Greeting + Validation */}
       <div className="text-center mb-6">
         {(!userName || userName === 'Guest') && (
-          <p className="bg-red-100 text-red-700 font-semibold px-4 py-2 rounded-lg mb-4">
-            ⚠️ Please complete your user profile.
-          </p>
+          <div className="flex items-center justify-between bg-red-50/60 backdrop-blur-sm border border-red-200 text-red-700 px-4 py-2 rounded-full mb-4 shadow-sm">
+            <span className="flex items-center gap-2">
+
+              Please complete your profile.
+            </span>
+            <Link to="/profile" className="text-sm text-red-600 hover:text-red-800 font-medium underline transition">
+              Go to Profile
+            </Link>
+          </div>
         )}
+
         {!company?.name && (
-          <p className="bg-yellow-100 text-yellow-700 font-semibold px-4 py-2 rounded-lg mb-4">
-            ⚠️ Company not found. Please add your company details.
-          </p>
+          <div className="flex items-center justify-between bg-yellow-50/60 backdrop-blur-sm border border-yellow-200 text-yellow-800 px-4 py-2 rounded-full mb-4 shadow-sm">
+            <span className="flex items-center gap-2">
+              Company details are missing.
+            </span>
+            <Link to="/company" className="text-sm text-yellow-700 hover:text-yellow-900 font-medium underline transition">
+              Fix Company
+            </Link>
+          </div>
         )}
+
         <h2 className="text-xl font-semibold">
           {getGreeting()}, {userName || 'Guest'} 👋
         </h2>
