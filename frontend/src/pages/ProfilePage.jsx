@@ -41,8 +41,13 @@ const ProfilePage = () => {
   }, [userInfo, user]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "team" ? value.toUpperCase() : value,
+    }));
   };
+
 
   const handleSave = async () => {
     const userId = user.id;
@@ -59,7 +64,7 @@ const ProfilePage = () => {
     } = formData;
 
     const payload = {
-      team,
+      team: team?.toUpperCase(), 
       role: user.role,
       totalLeaveDays: user.role === "admin" ? parseFloat(totalLeaveDays) : user.totalLeaveDays,
       userInfo: {
@@ -150,9 +155,6 @@ const ProfilePage = () => {
               <div className="text-lg text-gray-800">
                 <span className="font-semibold">Username:</span> {user.userName || "N/A"}
               </div>
-              <div className="text-lg text-gray-800">
-                <span className="font-semibold">Role:</span> {user.role.toUpperCase()}
-              </div>
             </div>
           </div>
 
@@ -185,7 +187,6 @@ const ProfilePage = () => {
                     onChange={handleChange}
                     className="w-full border rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   >
-                    <option value="">Select</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                     <option value="Other">Other</option>

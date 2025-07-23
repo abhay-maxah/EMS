@@ -76,7 +76,6 @@ export class AttendanceService {
       today: generateStatus(user, targetDateString),
       tomorrow: generateStatus(user, tomorrowDateString),
     }));
-
     return response;
   }
 }

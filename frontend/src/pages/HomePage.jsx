@@ -11,8 +11,6 @@ const HomePage = () => {
             <Clock />
           </div>
         </div>
-
-
         <div className="flex justify-center">
           <div className="w-full max-w-[600px]">
             <TeamView />

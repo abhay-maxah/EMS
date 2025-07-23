@@ -15,7 +15,6 @@ const useTeamStatus = create((set) => ({
 
     try {
       const res = await axiosInstance.get('/attendance', { params });
-
       set({ team: res.data, loading: false });
     } catch (err) {
       console.error('Fetch Error:', err);

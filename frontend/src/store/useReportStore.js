@@ -60,8 +60,7 @@ const useReportStore = create((set, get) => ({
       throw error;
     }
   },
-  
- 
+
   // 🔹 ✅ Fetch all reports for admin
   fetchAllReports: async ({ page = 1, name = '', dateRange = 'all' }) => {
     set({ loading: true });

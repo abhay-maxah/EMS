@@ -53,7 +53,8 @@ export class LeaveService {
     }
 
     // Destructure the DTO to separate `days` and other fields
-    const { startDate, endDate, totalLeaveDay, days, ...rest } = createLeaveDto;
+    const { startDate, endDate, totalLeaveDay, days, leaveType, ...rest } =
+      createLeaveDto;
 
     // Convert date strings from DTO to Date objects for Prisma
     const parsedStartDate = new Date(startDate);
@@ -73,9 +74,13 @@ export class LeaveService {
         'Total leave day must be a positive number.',
       );
     }
-
     // Check against user's remaining leave balance
-    if (totalLeaveDay > user.totalLeaveDays) {
+    // Only check balance if leave type is NOT UNPAID_LEAVE
+
+    if (
+      leaveType !== LeaveType.UNPAID_LEAVE &&
+      totalLeaveDay > user.totalLeaveDays
+    ) {
       throw new BadRequestException(
         `Insufficient leave balance. You only have ${user.totalLeaveDays} day(s) remaining.`,
       );
@@ -96,6 +101,7 @@ export class LeaveService {
         startDate: parsedStartDate,
         endDate: parsedEndDate,
         totalLeaveDay,
+        leaveType,
         ...rest, // This includes leaveType and reason
         appliedAt: new Date(),
         status: LeaveStatus.PENDING,
@@ -235,7 +241,7 @@ export class LeaveService {
     const currentYear = now.getFullYear();
 
     // Year filter logic
-    let dateFilter: { startDate?: any } = {};
+    const dateFilter: { startDate?: any } = {};
     if (year === 'current') {
       dateFilter.startDate = {
         gte: new Date(currentYear, 0, 1),

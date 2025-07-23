@@ -142,8 +142,8 @@ const ApplyLeaveForm = () => {
 
     try {
       const data = await addLeave(leavePayload);
-      if (data.status === 400 || data.status === 403 || data.status === 500) {
-        return toast.error(data.response.data.message);
+      if (data.status === 400 || data.status === 403 || data.status === 500 || data.success === false) {
+        return toast.error(data.error);
       }
       toast.success('Leave request submitted successfully!');
 
