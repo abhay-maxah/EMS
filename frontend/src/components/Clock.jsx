@@ -5,6 +5,14 @@ import useCompanyStore from '../store/useCompanyStore';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import { Link } from 'react-router-dom';
+import {
+  FaClock,
+  FaPlay,
+  FaPause,
+  FaSignOutAlt,
+  FaExclamationTriangle,
+  FaInfoCircle,
+} from 'react-icons/fa';
 
 const Clock = () => {
   const { user, userInfo } = useUserStore();
@@ -28,26 +36,17 @@ const Clock = () => {
 
   useEffect(() => {
     const companyId = user?.companyId || userInfo?.companyId;
-
     if (!companyId) return;
 
-    // First, try loading from localStorage
-    const localCompanyData = localStorage.getItem("company");
+    const localCompanyData = localStorage.getItem('company');
     if (localCompanyData) {
       const parsedCompany = JSON.parse(localCompanyData);
-      if (parsedCompany && parsedCompany.id === companyId) {
-        return;
-      }
+      if (parsedCompany?.id === companyId) return;
     }
 
-    // If not in localStorage or mismatch, fetch from API
-    getCompanyById(companyId).catch((error) =>
-      console.error("Failed to fetch company:", error)
-    );
+    getCompanyById(companyId).catch(console.error);
   }, [user?.companyId, userInfo?.companyId, getCompanyById]);
 
-
-  // Load clock state from localStorage
   useEffect(() => {
     if (!userId) return;
     const stored = JSON.parse(localStorage.getItem(getStorageKey()));
@@ -63,13 +62,11 @@ const Clock = () => {
     }
   }, [userId]);
 
-  // Live clock
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Timer for working seconds
   useEffect(() => {
     if (isClockedIn && !isOnBreak) {
       intervalRef.current = setInterval(() => {
@@ -79,22 +76,21 @@ const Clock = () => {
       clearInterval(intervalRef.current);
     }
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => clearInterval(intervalRef.current);
   }, [isClockedIn, isOnBreak]);
 
-  // Save to localStorage
   useEffect(() => {
     if (!userId) return;
     if (isClockedIn) {
-      const state = {
-        isClockedIn,
-        isOnBreak,
-        clockInTimestamp,
-        reportId: currentReportId,
-      };
-      localStorage.setItem(getStorageKey(), JSON.stringify(state));
+      localStorage.setItem(
+        getStorageKey(),
+        JSON.stringify({
+          isClockedIn,
+          isOnBreak,
+          clockInTimestamp,
+          reportId: currentReportId,
+        })
+      );
     } else {
       localStorage.removeItem(getStorageKey());
     }
@@ -106,7 +102,8 @@ const Clock = () => {
     const secs = (seconds % 60).toString().padStart(2, '0');
     return `${hrs}:${mins}:${secs}`;
   };
-  const MAX_WORK_SECONDS = 17 * 3600 + 59 * 60 + 59; // 64799 seconds
+
+  const MAX_WORK_SECONDS = 64799;
 
   const getGreeting = () => {
     const hour = time.getHours();
@@ -125,20 +122,18 @@ const Clock = () => {
       setIsOnBreak(false);
       setWorkSeconds(0);
       setLastWorkDuration(null);
-      toast.success('Clock In successful!');
+      toast.success('🟢 Clock In successful!');
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Clock In failed';
-      toast.error(msg);
+      toast.error(err?.response?.data?.message || 'Clock In failed');
     }
   };
 
-  const handleClockOut = () => {
-    setShowNoteModal(true);
-  };
+  const handleClockOut = () => setShowNoteModal(true);
 
   const confirmClockOut = async () => {
     try {
-      let cappedWorkSeconds = workSeconds > MAX_WORK_SECONDS ? MAX_WORK_SECONDS : workSeconds;
+      const cappedWorkSeconds =
+        workSeconds > MAX_WORK_SECONDS ? MAX_WORK_SECONDS : workSeconds;
       const totalWorkingHours = formatWorkDuration(cappedWorkSeconds);
       await updateReport(totalWorkingHours, noteInput || 'No note');
 
@@ -151,60 +146,67 @@ const Clock = () => {
 
       setShowNoteModal(false);
       setNoteInput('');
-      toast.success('Clock Out successful!');
+      toast.success('🔴 Clock Out successful!');
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Clock Out failed';
-      toast.error(msg);
+      toast.error(err?.response?.data?.message || 'Clock Out failed');
     }
   };
 
   const handleTakeBreak = () => setIsOnBreak(true);
   const handleResumeWork = () => setIsOnBreak(false);
 
-  if (!userId) {
-    return <LoadingSpinner />
-  }
+  if (!userId) return <LoadingSpinner />;
 
   const userName = user?.name || userInfo?.name || 'Guest';
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-8">
+    <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-center gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-blue-600">
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-bold text-blue-700 mb-1">
           {company?.name || 'Company Name'}
         </h1>
+        <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
+          <FaClock /> {time.toLocaleString()}
+        </div>
       </div>
-      {/* Greeting + Validation */}
+
+      {/* Alerts */}
+      {(!userName || userName === 'Guest') && (
+        <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-xl mb-4 shadow-sm">
+          <span className="flex items-center gap-2">
+            <FaExclamationTriangle className="text-red-600" />
+            Please complete your profile.
+          </span>
+          <Link
+            to="/profile"
+            className="text-sm underline hover:text-red-800 font-medium"
+          >
+            Fix Profile
+          </Link>
+        </div>
+      )}
+
+      {!company?.name && (
+        <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-xl mb-4 shadow-sm">
+          <span className="flex items-center gap-2">
+            <FaInfoCircle className="text-yellow-500" />
+            Company details missing.
+          </span>
+          <Link
+            to="/company"
+            className="text-sm underline hover:text-yellow-900 font-medium"
+          >
+            Fix Company
+          </Link>
+        </div>
+      )}
+
+      {/* Greeting */}
       <div className="text-center mb-6">
-        {(!userName || userName === 'Guest') && (
-          <div className="flex items-center justify-between bg-red-50/60 backdrop-blur-sm border border-red-200 text-red-700 px-4 py-2 rounded-full mb-4 shadow-sm">
-            <span className="flex items-center gap-2">
-
-              Please complete your profile.
-            </span>
-            <Link to="/profile" className="text-sm text-red-600 hover:text-red-800 font-medium underline transition">
-              Go to Profile
-            </Link>
-          </div>
-        )}
-
-        {!company?.name && (
-          <div className="flex items-center justify-between bg-yellow-50/60 backdrop-blur-sm border border-yellow-200 text-yellow-800 px-4 py-2 rounded-full mb-4 shadow-sm">
-            <span className="flex items-center gap-2">
-              Company details are missing.
-            </span>
-            <Link to="/company" className="text-sm text-yellow-700 hover:text-yellow-900 font-medium underline transition">
-              Fix Company
-            </Link>
-          </div>
-        )}
-
-        <h2 className="text-xl font-semibold">
-          {getGreeting()}, {userName || 'Guest'} 👋
-        </h2>
+        <h2 className="text-2xl font-semibold">{getGreeting()}, {userName} 👋</h2>
         <p
-          className={`mt-2 text-base font-semibold ${!isClockedIn
+          className={`mt-2 text-lg font-medium ${!isClockedIn
             ? 'text-gray-600'
             : isOnBreak
               ? 'text-yellow-500'
@@ -217,23 +219,28 @@ const Clock = () => {
               ? 'You are currently on break.'
               : 'You are currently working.'}
         </p>
+        {clockInTimestamp && (
+          <p className="text-sm text-gray-400 mt-1">
+            Clocked in at: {new Date(clockInTimestamp).toLocaleTimeString()}
+          </p>
+        )}
       </div>
 
-      {/* Work Duration */}
+      {/* Work Timer */}
       {isClockedIn && (
-        <div className="mb-6 text-5xl font-mono font-bold text-blue-600 text-center">
-          {formatWorkDuration(workSeconds)}
+        <div className="text-center mb-6">
+          <div className="text-6xl font-mono font-bold text-blue-600">
+            {formatWorkDuration(workSeconds)}
+          </div>
         </div>
       )}
 
-      {/* Last Work Summary */}
+      {/* Work Summary */}
       {!isClockedIn && lastWorkDuration && (
-        <div className="mb-6 text-center">
-          <p className="text-lg text-gray-700 font-semibold">
-            ✅ You worked{' '}
-            <span className="text-blue-600">{lastWorkDuration}</span> today.
-            Great job!
-          </p>
+        <div className="mb-6 text-center text-lg text-gray-700">
+          ✅ You worked{' '}
+          <span className="text-blue-600 font-bold">{lastWorkDuration}</span>{' '}
+          today. Great job!
         </div>
       )}
 
@@ -242,32 +249,32 @@ const Clock = () => {
         {!isClockedIn ? (
           <button
             onClick={handleClockIn}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl shadow-md transition"
+            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
           >
-            Clock In
+            <FaPlay /> Clock In
           </button>
         ) : (
           <>
             {!isOnBreak ? (
               <button
                 onClick={handleTakeBreak}
-                className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-3 rounded-xl shadow-md transition"
+                  className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
               >
-                Take a Break
+                  <FaPause /> Take a Break
               </button>
             ) : (
               <button
                 onClick={handleResumeWork}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl shadow-md transition"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
               >
-                Resume Work
+                    <FaPlay /> Resume Work
               </button>
             )}
             <button
               onClick={handleClockOut}
-              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl shadow-md transition"
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
             >
-              Clock Out
+                <FaSignOutAlt /> Clock Out
             </button>
           </>
         )}
@@ -275,28 +282,28 @@ const Clock = () => {
 
       {/* Note Modal */}
       {showNoteModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">
-              Add Note Before Clock Out
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+          <div className="bg-white rounded-2xl p-6 w-[90%] max-w-lg shadow-2xl">
+            <h2 className="text-xl font-bold mb-3">
+              📝 Add a note before Clocking Out
             </h2>
             <textarea
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
-              placeholder="Write about today's work..."
+              placeholder="Brief summary of your work today..."
               rows={4}
-              className="w-full border border-gray-300 rounded-lg p-2 mb-4 outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg p-3 mb-4 outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowNoteModal(false)}
-                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-md"
+                className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmClockOut}
-                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md"
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md"
               >
                 Submit & Clock Out
               </button>

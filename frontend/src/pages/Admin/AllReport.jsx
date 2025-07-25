@@ -3,7 +3,7 @@ import useReportStore from '../../store/useReportStore';
 import useUserStore from '../../store/useUserStore';
 import useCompanyStore from '../../store/useCompanyStore';
 import Pagination from '../../components/commonComponent/pagination';
-import LoadingSpinner from '../../components/LoadingSpinner';
+import LoadingBar from '../../components/commonComponent/LoadingBar';
 
 const AllReport = () => {
   const { fetchAllReports, loading } = useReportStore();
@@ -155,73 +155,80 @@ const AllReport = () => {
       </div>
 
       {/* 📄 Reports Table */}
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <div className="overflow-auto rounded-xl shadow-md">
-          <table className="w-full border border-gray-200 rounded-xl">
-            <thead className="bg-gray-100">
+      <div className="overflow-auto rounded-xl shadow-md">
+        <table className="w-full border border-gray-200 rounded-xl">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Sr No.</th>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Date</th>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Name</th>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Email</th>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Punch In</th>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Punch Out</th>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Total Hours</th>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Break Time</th>
+              <th className="border px-4 py-3 text-left text-sm font-semibold">Note</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading && (
               <tr>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Sr No.</th>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Date</th>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Name</th>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Email</th>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Punch In</th>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Punch Out</th>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Total Hours</th>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Break Time</th>
-                <th className="border px-4 py-3 text-left text-sm font-semibold">Note</th>
+                <td colSpan="9" className="px-4 py-2">
+                  <LoadingBar />
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {reports.length > 0 ? (
-                reports.map((report, index) => (
-                  <tr
-                    key={report.id}
-                    className="hover:bg-gray-50 transition cursor-pointer"
+            )}
+
+            {!loading && reports.length > 0 ? (
+              reports.map((report, index) => (
+                <tr
+                  key={report.id}
+                  className="hover:bg-gray-50 transition cursor-pointer"
+                >
+                  <td className="border px-4 py-2">{index + 1}</td>
+                  <td className="border px-4 py-2">{formatDate(report.punchIn)}</td>
+                  <td className="border px-4 py-2">
+                    {report.name} ({report.userName})
+                  </td>
+                  <td className="border px-4 py-2">{report.email || '—'}</td>
+                  <td className="border px-4 py-2">
+                    {report.punchIn
+                      ? new Date(report.punchIn).toLocaleTimeString([], { hour12: true })
+                      : '—'}
+                  </td>
+                  <td className="border px-4 py-2">
+                    {report.punchOut
+                      ? new Date(report.punchOut).toLocaleTimeString([], { hour12: true })
+                      : '—'}
+                  </td>
+                  <td className="border px-4 py-2">{report.totalWorkingHours || '—'}</td>
+                  <td className="border px-4 py-2">{report.breakTime || '—'}</td>
+                  <td
+                    className="border px-4 py-2"
+                    onMouseMove={(e) => handleMouseMove(e, report.note)}
+                    onMouseLeave={handleMouseLeave}
                   >
-                    <td className="border px-4 py-2">{index + 1}</td>
-                    <td className="border px-4 py-2">{formatDate(report.punchIn)}</td>
-                    <td className="border px-4 py-2">
-                      {report.name} ({report.userName})
-                    </td>
-                    <td className="border px-4 py-2">{report.email || '—'}</td>
-                    <td className="border px-4 py-2">
-                      {report.punchIn
-                        ? new Date(report.punchIn).toLocaleTimeString([], { hour12: true })
-                        : '—'}
-                    </td>
-                    <td className="border px-4 py-2">
-                      {report.punchOut
-                        ? new Date(report.punchOut).toLocaleTimeString([], { hour12: true })
-                        : '—'}
-                    </td>
-                    <td className="border px-4 py-2">{report.totalWorkingHours || '—'}</td>
-                    <td className="border px-4 py-2">{report.breakTime || '—'}</td>
-                    <td
-                      className="border px-4 py-2"
-                      onMouseMove={(e) => handleMouseMove(e, report.note)}
-                      onMouseLeave={handleMouseLeave}
-                    >
-                      {report.note
-                        ? report.note.length > 20
-                          ? `${report.note.slice(0, 20)}...`
-                          : report.note
-                        : '—'}
-                    </td>
-                  </tr>
-                ))
-              ) : (
+                    {report.note
+                      ? report.note.length > 20
+                        ? `${report.note.slice(0, 20)}...`
+                        : report.note
+                      : '—'}
+                  </td>
+                </tr>
+              ))
+            ) : (
+                !loading && (
                 <tr>
                   <td colSpan="9" className="border px-4 py-4 text-center text-gray-500">
                     No reports found.
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                )
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* 🧠 Tooltip */}
       {showTooltip && hoveredNote && (
@@ -232,7 +239,6 @@ const AllReport = () => {
           <span className="font-bold text-base">Note:</span> {hoveredNote}
         </div>
       )}
-
       {/* 📦 Pagination */}
       {!loading && (
         <Pagination

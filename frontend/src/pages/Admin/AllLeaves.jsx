@@ -3,7 +3,7 @@ import useLeaveStore from '../../store/useLeaveStore';
 import useUserStore from '../../store/useUserStore';
 import useCompanyStore from '../../store/useCompanyStore';
 import { toast } from 'react-toastify';
-import LoadingSpinner from '../../components/LoadingSpinner';
+import LoadingBar from '../../components/commonComponent/LoadingBar';
 import Pagination from '../../components/commonComponent/pagination';
 
 const LeaveStatus = ['PENDING', 'APPROVED', 'REJECTED'];
@@ -39,6 +39,31 @@ const AllLeaves = () => {
   const updateLeaveStatus = useLeaveStore((state) => state.updateLeaveStatus);
   const getUserList = useUserStore((state) => state.getUserList);
   const isCompanyPresent = useCompanyStore((state) => state.isCompanyPresent);
+  const formatDateWithWeekday = (date) => {
+    const d = new Date(date);
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  };
+  const formatDateWithTime = (dateStr) => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+
+  const getDayName = (date) => new Date(date).toLocaleDateString('en-GB', { weekday: 'short' });
+
+  const getDMY = (date) => new Date(date).toLocaleDateString('en-GB');
+
+  const norm = (str) => str?.toUpperCase().replace(/\s/g, '_');
+
+  const tickIf = (condition) => condition ? '✓' : '';
 
   const loadLeaves = async (page = 1) => {
     setLoading(true);
@@ -187,27 +212,35 @@ const AllLeaves = () => {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <LoadingSpinner />
-        </div>
-      ) : (
-        <div className="relative overflow-x-auto rounded-xl shadow-md">
-          <table className="min-w-full bg-white border border-gray-200 rounded-xl">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Sr No.</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Username</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Start</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">End</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Type</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold">Days</th>
-              </tr>
-            </thead>
+      <div className="relative overflow-x-auto rounded-xl shadow-md">
+        <table className="min-w-full bg-white border border-gray-200 rounded-xl">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Sr No.</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Username</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Start</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">End</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Type</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+              <th className="px-4 py-3 text-right text-sm font-semibold">Days</th>
+            </tr>
+          </thead>
+
+          {/* ✅ Loading bar row */}
+          {loading && (
             <tbody>
-                {leaves.length > 0 ? (
-                  leaves.map((leave, index) => (
+              <tr>
+                <td colSpan={7} className="px-4 pt-2 pb-1">
+                  <LoadingBar />
+                </td>
+              </tr>
+            </tbody>
+          )}
+
+          {!loading && (
+            <tbody>
+              {leaves.length > 0 ? (
+                leaves.map((leave, index) => (
                   <tr
                     key={leave.id}
                     className="hover:bg-gray-50 cursor-pointer transition"
@@ -245,11 +278,11 @@ const AllLeaves = () => {
                 </tr>
               )}
             </tbody>
-          </table>
-        </div>
-      )}
+          )}
+        </table>
+      </div>
 
-      {totalPages > 1 && (
+      {totalPages > 1 && !loading && (
         <div className="mt-6">
           <Pagination
             currentPage={currentPage}
@@ -260,47 +293,154 @@ const AllLeaves = () => {
       )}
 
       {selectedLeave && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="backdrop-blur-md bg-white/90 rounded-2xl shadow-xl p-8 w-full max-w-xl">
-            <h3 className="text-2xl font-semibold mb-4">Leave Details</h3>
-            <div className="space-y-2">
-              <p><strong>Username:</strong> {selectedLeave.appliedBy?.userName || 'N/A'}</p>
-              <p><strong>Name:</strong> {selectedLeave.appliedBy?.name || 'N/A'}</p>
-              <p><strong>Email:</strong> {selectedLeave.appliedBy?.email}</p>
-              <p><strong>Role:</strong> {selectedLeave.appliedBy?.role}</p>
-              <p><strong>Leave Type:</strong> {selectedLeave.leave?.leaveType.replace('_', ' ')}</p>
-              <p><strong>Status:</strong> {selectedLeave.leave?.status}</p>
-              <p><strong>Total Days:</strong> {selectedLeave.leave?.totalLeaveDay}</p>
-              <p><strong>Start Date:</strong> {formatDate(selectedLeave.leave?.startDate)}</p>
-              <p><strong>End Date:</strong> {formatDate(selectedLeave.leave?.endDate)}</p>
-              <p><strong>Reason:</strong> {selectedLeave.leave?.reason}</p>
-              <p><strong>Admin Note:</strong> {selectedLeave.leave?.adminNote}</p>
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl mx-4 relative animate-fade-in">
+
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedLeave(null)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 transition"
+              aria-label="Close"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Heading */}
+            <h3 className="text-2xl font-bold text-gray-800 mb-5 border-b pb-3 flex items-center gap-2">
+              Leave Details
+            </h3>
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 mb-5">
+              {/* Leave Type */}
+              <DetailBox
+                label="Leave Type"
+                value={selectedLeave.leave?.leaveType?.replace(/_/g, ' ') || '—'}
+                iconPath="M12 6V4a2 2 0 00-2-2H6a2 2 0 00-2 2v16a2 2 0 002 2h4a2 2 0 002-2v-2m0-12v16m0-16h6a2 2 0 012 2v12a2 2 0 01-2 2h-6"
+              />
+              <DetailBox
+                label="Applied By"
+                value={`${selectedLeave.appliedBy?.name || '—'} (${selectedLeave.appliedBy?.email || '—'})`}
+                iconPath="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              />
+
+
+              {/* Applied At */}
+              <DetailBox
+                label="Applied At"
+                value={selectedLeave.leave?.appliedAt ? formatDateWithTime(selectedLeave.leave.appliedAt) : '—'}
+                iconPath="M8 7V3m8 4V3M4 11h16M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z"
+              />
+
+              {/* Approved/Rejected At */}
+              <DetailBox
+                label="Reviewed At"
+                value={selectedLeave.leave?.approvedRejectedAt ? formatDateWithTime(selectedLeave.leave.approvedRejectedAt) : '—'}
+                iconPath="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+
+              {/* Status */}
+              <DetailBox
+                label="Status"
+                valueClassName={
+                  selectedLeave.leave?.status?.toLowerCase() === 'approved'
+                    ? 'text-green-600'
+                    : selectedLeave.leave?.status?.toLowerCase() === 'rejected'
+                      ? 'text-red-500'
+                      : 'text-yellow-600'
+                }
+                value={selectedLeave.leave?.status || '—'}
+                iconPath="M12 9v2m0 4h.01M12 17h0m0-13a9 9 0 100 18 9 9 0 000-18z"
+              />
+
+              {/* Total Days */}
+              <DetailBox
+                label="Total Days"
+                value={selectedLeave.leave?.totalLeaveDay || '—'}
+                iconPath="M8 7V3m8 4V3m-9 8h10m-12 8a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12z"
+              />
+
+              {/* Start Date */}
+              <DetailBox
+                label="Start Date"
+                value={formatDateWithWeekday(selectedLeave.leave?.startDate)}
+                iconPath="M8 7V3m8 4V3M4 11h16M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z"
+              />
+
+              {/* End Date */}
+              <DetailBox
+                label="End Date"
+                value={formatDateWithWeekday(selectedLeave.leave?.endDate)}
+                iconPath="M8 7V3m8 4V3M4 11h16M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z"
+              />
+
+              {/* Reason */}
+              <div className="bg-white border rounded-md px-3 py-2 shadow-sm col-span-full">
+                <p className="text-[11px] text-gray-500 uppercase tracking-wide mb-1">Reason</p>
+                <p className="text-gray-800 text-sm">{selectedLeave.leave?.reason || '—'}</p>
+              </div>
+
+              {/* Admin Note */}
+              <div className="bg-white border rounded-md px-3 py-2 shadow-sm col-span-full">
+                <p className="text-[11px] text-gray-500 uppercase tracking-wide mb-1">Admin Note</p>
+                <p className="text-gray-800 text-sm">{selectedLeave.leave?.adminNote || 'N/A'}</p>
+              </div>
             </div>
 
+            {/* Leave Breakdown Table */}
             {selectedLeave.leave?.days?.length > 0 && (
-              <div className="mt-4">
-                <h4 className="font-semibold mb-2">Leave Days Breakdown:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  {selectedLeave.leave.days.map((day) => (
-                    <li key={day.id}>
-                      {formatDate(day.date)} - {day.leaveType.replace('_', ' ')}
-                    </li>
-                  ))}
-                </ul>
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 mb-3">Leave Days Breakdown</h4>
+
+                <div className="w-full overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="w-full table-fixed">
+                    <thead className="bg-gray-100">
+                      <tr className="text-sm text-gray-700">
+                        <th className="p-2 border">Sr</th>
+                        <th className="p-2 border">Day</th>
+                        <th className="p-2 border">Date</th>
+                        <th className="p-2 border">First Half</th>
+                        <th className="p-2 border">Second Half</th>
+                        <th className="p-2 border">Full Day</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {selectedLeave.leave.days.map((day, idx) => {
+                        const t = norm(day.leaveType);
+                        return (
+                          <tr key={day.id || idx} className="text-center hover:bg-gray-50">
+                            <td className="p-2 border">{idx + 1}</td>
+                            <td className="p-2 border">{getDayName(day.date)}</td>
+                            <td className="p-2 border">{getDMY(day.date)}</td>
+                            <td className="p-2 border text-green-600 font-bold">
+                              {tickIf(t === 'FIRST_HALF')}
+                            </td>
+                            <td className="p-2 border text-green-600 font-bold">
+                              {tickIf(t === 'SECOND_HALF')}
+                            </td>
+                            <td className="p-2 border text-green-600 font-bold">
+                              {tickIf(t === 'FULL_DAY')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
-
-            <div className="mt-6 text-right">
-              <button
-                onClick={() => setSelectedLeave(null)}
-                className="px-4 py-2 bg-gray-700 text-white hover:bg-gray-800 rounded-md transition"
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}
+
 
       {showAdminNoteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
@@ -334,7 +474,6 @@ const AllLeaves = () => {
                 Submit
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -343,3 +482,14 @@ const AllLeaves = () => {
 };
 
 export default AllLeaves;
+const DetailBox = ({ label, value, valueClassName = '', iconPath }) => (
+  <div className="bg-white border rounded-md px-3 py-2 flex items-center gap-2 shadow-sm">
+    <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d={iconPath} />
+    </svg>
+    <div>
+      <p className="text-[11px] text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className={`font-semibold capitalize text-gray-800 ${valueClassName}`}>{value}</p>
+    </div>
+  </div>
+);

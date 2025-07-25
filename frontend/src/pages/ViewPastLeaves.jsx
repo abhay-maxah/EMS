@@ -1,12 +1,37 @@
 import { useEffect, useState } from 'react';
 import useLeaveStore from '../store/useLeaveStore';
-import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/commonComponent/Pagination';
+import LoadingBar from '../components/commonComponent/LoadingBar';
 
-const formatDate = (isoDate) => {
-  if (!isoDate) return '-';
+const formatDateTable = (isoDate) => {
+  if (!isoDate) return '—';
   const d = new Date(isoDate);
   return d.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const formatDateWithWeekday = (isoDate) => {
+  if (!isoDate) return '—';
+  const d = new Date(isoDate);
+  return d.toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const getDayName = (isoDate) => {
+  if (!isoDate) return '—';
+  return new Date(isoDate).toLocaleDateString('en-GB', { weekday: 'short' });
+};
+
+const getDMY = (isoDate) => {
+  if (!isoDate) return '—';
+  return new Date(isoDate).toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -17,10 +42,9 @@ const ViewPastLeaves = () => {
   const fetchLeaves = useLeaveStore((state) => state.fetchLeaves);
   const fetchLeaveById = useLeaveStore((state) => state.fetchLeaveById);
 
-  const [allLeaves, setAllLeaves] = useState([]); // unfiltered from backend
-  const [filteredLeaves, setFilteredLeaves] = useState([]); // filtered by status
+  const [allLeaves, setAllLeaves] = useState([]);
+  const [filteredLeaves, setFilteredLeaves] = useState([]);
   const [selectedLeave, setSelectedLeave] = useState(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -40,9 +64,7 @@ const ViewPastLeaves = () => {
           limit: leavesPerPage,
           year: yearFilter,
         });
-
-        const backendLeaves = data.leave || [];
-        setAllLeaves(backendLeaves);
+        setAllLeaves(data.leave || []);
         setTotalPages(data.totalPages || 1);
       } catch (err) {
         setError(err?.message || 'Failed to fetch leaves');
@@ -50,11 +72,9 @@ const ViewPastLeaves = () => {
         setLoading(false);
       }
     };
-
     getLeaves();
   }, [yearFilter, currentPage]);
 
-  // Apply client-side status filtering
   useEffect(() => {
     if (statusFilter === 'All') {
       setFilteredLeaves(allLeaves);
@@ -75,123 +95,121 @@ const ViewPastLeaves = () => {
     }
   };
 
+  const tickIf = (cond) => (cond ? '✓' : '');
+
+  const norm = (t = '') => t.toUpperCase(); // normalize leaveType safely
+
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="max-w-6xl mx-auto p-4 md:p-6 relative">
+      <div className="flex items-center gap-3 mb-4">
         <div className="w-1 h-8 bg-blue-600 rounded"></div>
-        <h2 className="text-3xl md:text-4xl font-bold text-black-800">
-          Past Leave Records
-        </h2>
+        <h1 className="text-4xl font-bold text-gray-800">Past Leave Records</h1>
       </div>
 
-      {loading && <LoadingSpinner />}
-      {error && <p className="text-red-500">{error}</p>}
+      {error && <p className="text-red-500 mb-4">{error}</p>}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-6 mb-6">
-        {/* Year Filter */}
-        <div className="flex items-center space-x-2">
-          <label htmlFor="yearFilter" className="text-black-700 font-medium">
+        <div className="flex items-center gap-2">
+          <label htmlFor="yearFilter" className="text-gray-700 font-medium">
             Filter By Year:
           </label>
-          <div className="relative w-40">
-            <select
-              id="yearFilter"
-              className="appearance-none w-full border border-black-300 rounded-lg px-3 py-2 pr-8 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-              value={yearFilter}
-              onChange={(e) => {
-                setYearFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="all">All Years</option>
-              <option value="current">Current Year</option>
-              <option value="last">Last Year</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-black-500">
-              ▼
-            </div>
-          </div>
+          <select
+            id="yearFilter"
+            className="p-2 border border-gray-300 rounded-md"
+            value={yearFilter}
+            onChange={(e) => {
+              setYearFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="all">All Years</option>
+            <option value="current">Current Year</option>
+            <option value="last">Last Year</option>
+          </select>
         </div>
 
-        {/* Status Filter */}
-        <div className="flex items-center space-x-2">
-          <label htmlFor="statusFilter" className="text-black-700 font-medium">
+        <div className="flex items-center gap-2">
+          <label htmlFor="statusFilter" className="text-gray-700 font-medium">
             Filter By Status:
           </label>
-          <div className="relative w-40">
-            <select
-              id="statusFilter"
-              className="appearance-none w-full border border-black-300 rounded-lg px-3 py-2 pr-8 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All</option>
-              <option value="Approved">Approved</option>
-              <option value="Pending">Pending</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-black-500">
-              ▼
-            </div>
-          </div>
+          <select
+            id="statusFilter"
+            className="p-2 border border-gray-300 rounded-md"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="All">All</option>
+            <option value="Approved">Approved</option>
+            <option value="Pending">Pending</option>
+            <option value="Rejected">Rejected</option>
+          </select>
         </div>
       </div>
 
-
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl shadow-md">
-        <table className="w-full table-auto border border-black-300">
-          <thead className="bg-blue-50">
-            <tr>
-              <th className="p-3 border">S.No</th>
-              <th className="p-3 border">Start Date</th>
-              <th className="p-3 border">End Date</th>
-              <th className="p-3 border">Type</th>
-              <th className="p-3 border">Status</th>
-              <th className="p-3 border">Total Days</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredLeaves.length > 0 ? (
-              filteredLeaves.map((leave, index) => (
-                <tr
-                  key={leave.id}
-                  className="text-center text-black-700 cursor-pointer hover:bg-blue-50 transition"
-                  onClick={() => handleRowClick(leave.id)}
-                >
-                  <td className="p-3 border">{(currentPage - 1) * leavesPerPage + index + 1}</td>
-                  <td className="p-3 border">{formatDate(leave.startDate)}</td>
-                  <td className="p-3 border">{formatDate(leave.endDate)}</td>
-                  <td className="p-3 border">
-                    {leave.leaveType.replace(/_/g, ' ')}
+      <div className="rounded-xl shadow-md bg-white overflow-hidden">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-full table-fixed">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-3 text-sm border">S.No</th>
+                <th className="p-3 text-sm border">Start Date</th>
+                <th className="p-3 text-sm border">End Date</th>
+                <th className="p-3 text-sm border">Type</th>
+                <th className="p-3 text-sm border">Status</th>
+                <th className="p-3 text-sm border">Total Days</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="6">
+                    <LoadingBar />
                   </td>
-                  <td
-                    className={`p-3 border font-semibold ${leave.status?.toLowerCase() === 'approved'
+                </tr>
+              ) : filteredLeaves.length > 0 ? (
+                filteredLeaves.map((leave, index) => (
+                  <tr
+                    key={leave.id}
+                    className="hover:bg-gray-50 transition text-center border-b cursor-pointer text-base"
+                    onClick={() => handleRowClick(leave.id)}
+                  >
+                    <td className="p-3 border">
+                      {(currentPage - 1) * leavesPerPage + index + 1}
+                    </td>
+                    <td className="p-3 border">{formatDateWithWeekday(leave.startDate)}</td>
+                    <td className="p-3 border">{formatDateWithWeekday(leave.endDate)}</td>
+                    <td className="p-3 border">
+                      {leave.leaveType?.replace(/_/g, ' ') || '—'}
+                    </td>
+                    <td
+                      className={`p-3 border font-semibold ${leave.status?.toLowerCase() === 'approved'
                         ? 'text-green-600'
                         : leave.status?.toLowerCase() === 'rejected'
                           ? 'text-red-500'
                           : 'text-yellow-600'
-                      }`}
-                  >
-                    {leave.status}
+                        }`}
+                    >
+                      {leave.status || '—'}
+                    </td>
+                    <td className="p-3 border">{leave.totalLeaveDay || '—'}</td>
+                  </tr>
+                ))
+                ) : (
+                  <tr>
+                  <td colSpan="6" className="text-center text-gray-500 p-6">
+                    No leave records found.
                   </td>
-                  <td className="p-3 border">{leave.totalLeaveDay}</td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                  <td colSpan="6" className="p-5 text-center text-black-500">
-                  No leave records found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!loading && totalPages > 1 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
@@ -201,59 +219,152 @@ const ViewPastLeaves = () => {
 
       {/* Modal */}
       {selectedLeave && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4 relative animate-fade-in">
-            <h3 className="text-xl font-semibold mb-4 border-b pb-2">
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl mx-4 relative animate-fade-in">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedLeave(null)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 transition"
+              aria-label="Close"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Modal Heading */}
+            <h3 className="text-2xl font-bold text-gray-800 mb-5 border-b pb-3 flex items-center gap-2">
+
               Leave Details
             </h3>
 
-            <div className="space-y-2">
-              <p>
-                <strong>Leave Type:</strong>{' '}
-                {selectedLeave.leave?.leaveType.replace(/_/g, ' ')}
-              </p>
-              <p>
-                <strong>Status:</strong> {selectedLeave.leave?.status}
-              </p>
-              <p>
-                <strong>Total Days:</strong>{' '}
-                {selectedLeave.leave?.totalLeaveDay}
-              </p>
-              <p>
-                <strong>Start Date:</strong>{' '}
-                {formatDate(selectedLeave.leave?.startDate)}
-              </p>
-              <p>
-                <strong>End Date:</strong>{' '}
-                {formatDate(selectedLeave.leave?.endDate)}
-              </p>
-              <p>
-                <strong>Reason:</strong> {selectedLeave.leave?.reason}
-              </p>
-              <p>
-                <strong>Admin Note:</strong>{' '}
-                {selectedLeave.leave?.adminNote || 'N/A'}
-              </p>
+            {/* Leave Detail Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 mb-5">
 
-              <div className="mt-4">
-                <h4 className="font-semibold mb-2">Leave Days Breakdown:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  {selectedLeave.leave?.days?.map((day) => (
-                    <li key={day.id}>
-                      {formatDate(day.date)} -{' '}
-                      {day.leaveType.replace(/_/g, ' ')}
-                    </li>
-                  ))}
-                </ul>
+              {/* Leave Type */}
+              <div className="bg-white border rounded-md px-3 py-2 flex items-center gap-2 shadow-sm">
+                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4a2 2 0 00-2-2H6a2 2 0 00-2 2v16a2 2 0 002 2h4a2 2 0 002-2v-2m0-12v16m0-16h6a2 2 0 012 2v12a2 2 0 01-2 2h-6" />
+                </svg>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Leave Type</p>
+                  <p className="font-semibold capitalize text-gray-800">{selectedLeave.leave?.leaveType?.replace(/_/g, ' ') || '—'}</p>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="bg-white border rounded-md px-3 py-2 flex items-center gap-2 shadow-sm">
+                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 17h0m0-13a9 9 0 100 18 9 9 0 000-18z" />
+                </svg>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Status</p>
+                  <p className={`font-semibold ${selectedLeave.leave?.status?.toLowerCase() === 'approved' ? 'text-green-600' :
+                    selectedLeave.leave?.status?.toLowerCase() === 'rejected' ? 'text-red-500' :
+                      'text-yellow-600'
+                    }`}>
+                    {selectedLeave.leave?.status || '—'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Total Days */}
+              <div className="bg-white border rounded-md px-3 py-2 flex items-center gap-2 shadow-sm">
+                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-12 8a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12z" />
+                </svg>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Total Days</p>
+                  <p className="font-semibold text-gray-800">{selectedLeave.leave?.totalLeaveDay || '—'}</p>
+                </div>
+              </div>
+
+              {/* Start Date */}
+              <div className="bg-white border rounded-md px-3 py-2 flex items-center gap-2 shadow-sm">
+                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">Start Date</p>
+                  <p className="font-semibold text-gray-800">{formatDateWithWeekday(selectedLeave.leave?.startDate)}</p>
+                </div>
+              </div>
+
+              {/* End Date */}
+              <div className="bg-white border rounded-md px-3 py-2 flex items-center gap-2 shadow-sm">
+                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wide">End Date</p>
+                  <p className="font-semibold text-gray-800">{formatDateWithWeekday(selectedLeave.leave?.endDate)}</p>
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div className="bg-white border rounded-md px-3 py-2 shadow-sm col-span-full">
+                <p className="text-[11px] text-gray-500 uppercase tracking-wide mb-1">Reason</p>
+                <p className="text-gray-800 text-sm">{selectedLeave.leave?.reason || '—'}</p>
+              </div>
+
+              {/* Admin Note */}
+              <div className="bg-white border rounded-md px-3 py-2 shadow-sm col-span-full">
+                <p className="text-[11px] text-gray-500 uppercase tracking-wide mb-1">Admin Note</p>
+                <p className="text-gray-800 text-sm">{selectedLeave.leave?.adminNote || 'N/A'}</p>
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedLeave(null)}
-              className="absolute top-2 right-2 bg-black-200 hover:bg-black-300 rounded-full p-1"
-            >
-              ✕
-            </button>
+
+            {/* Leave Breakdown: Table style with tick marks */}
+            {selectedLeave.leave?.days?.length > 0 && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 mb-3">
+                  Leave Days Breakdown
+                </h4>
+
+                <div className="w-full overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="w-full table-fixed">
+                    <thead className="bg-gray-100">
+                      <tr className="text-sm text-gray-700">
+                        <th className="p-2 border">Sr</th>
+                        <th className="p-2 border">Day</th>
+                        <th className="p-2 border">Date</th>
+                        <th className="p-2 border">First Half</th>
+                        <th className="p-2 border">Second Half</th>
+                        <th className="p-2 border">Full Day</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {selectedLeave.leave.days.map((day, idx) => {
+                        const t = norm(day.leaveType);
+                        return (
+                          <tr key={day.id || idx} className="text-center hover:bg-gray-50">
+                            <td className="p-2 border">{idx + 1}</td>
+                            <td className="p-2 border">{getDayName(day.date)}</td>
+                            <td className="p-2 border">{getDMY(day.date)}</td>
+                            <td className="p-2 border text-green-600 font-bold">
+                              {tickIf(t === 'FIRST_HALF')}
+                            </td>
+                            <td className="p-2 border text-green-600 font-bold">
+                              {tickIf(t === 'SECOND_HALF')}
+                            </td>
+                            <td className="p-2 border text-green-600 font-bold">
+                              {tickIf(t === 'FULL_DAY')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

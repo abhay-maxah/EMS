@@ -95,7 +95,7 @@ export default function SignupDetailsForm() {
           <label className="block text-sm font-semibold mb-1">Phone Number</label>
           <input
             type="tel"
-            name="phone"
+            name="phone"                                    
             placeholder="Phone Number"
             value={form.phone}
             onChange={(e) => {

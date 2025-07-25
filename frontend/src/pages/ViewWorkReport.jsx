@@ -3,8 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import useUserStore from '../store/useUserStore';
 import useReportStore from '../store/useReportStore';
 import { toast } from 'react-toastify';
-import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/commonComponent/pagination';
+import LoadingBar from '../components/commonComponent/LoadingBar'; // ✅ Use your custom loading bar
 
 const formatDateTime = (dateString) => {
   if (!dateString) return '—';
@@ -87,7 +87,7 @@ const ViewWorkReport = () => {
 
   const handleDateFilterChange = (e) => {
     const newFilter = e.target.value;
-    setSearchParams({ page: 1, dateRange: newFilter }); // Reset to page 1
+    setSearchParams({ page: 1, dateRange: newFilter });
   };
 
   const handleMouseMove = (e, note) => {
@@ -112,7 +112,7 @@ const ViewWorkReport = () => {
         <h1 className="text-4xl font-bold text-gray-800">Work Report</h1>
       </div>
 
-      {/* 🔽 Date Filter Dropdown */}
+      {/* 🔽 Date Filter */}
       <div className="mb-4">
         <label htmlFor="dateFilter" className="mr-2 font-medium text-gray-700">
           Date Range:
@@ -130,7 +130,7 @@ const ViewWorkReport = () => {
         </select>
       </div>
 
-      {/* ✅ Show selected start/end date */}
+      {/* ✅ Date Range Info */}
       {dateFilter !== 'All' && dateRange.startDate && dateRange.endDate && (
         <div className="mb-4 text-gray-600">
           Showing reports from{' '}
@@ -139,19 +139,11 @@ const ViewWorkReport = () => {
         </div>
       )}
 
-      {/* 🔄 Loading State */}
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <LoadingSpinner />
-        </div>
-      ) : reports.length === 0 ? (
-        <div className="text-gray-500 bg-white p-6 rounded-xl shadow-md">
-          No work reports found.
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl shadow-md bg-white">
-          <table className="w-full table-auto">
-            <thead className="bg-blue-50">
+      {/* ✅ Table */}
+      <div className="rounded-xl shadow-md bg-white overflow-hidden">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-full table-fixed">
+            <thead className="bg-gray-50 text-gray-700">
               <tr>
                 <th className="p-3 text-sm border">S.No</th>
                 <th className="p-3 text-sm border">Clock In</th>
@@ -161,50 +153,74 @@ const ViewWorkReport = () => {
                 <th className="p-3 text-sm border">Note</th>
               </tr>
             </thead>
-            <tbody>
-              {reports.map((report, index) => (
-                <tr
-                  key={report.id}
-                  className="hover:bg-blue-50 transition text-center border-b cursor-pointer"
-                >
-                  <td className="p-3 border">{index + 1}</td>
-                  <td className="p-3 border">{formatDateTime(report.punchIn)}</td>
-                  <td className="p-3 border">
-                    {report.punchOut ? formatDateTime(report.punchOut) : '—'}
-                  </td>
-                  <td className="p-3 border">{report.totalWorkingHours}</td>
-                  <td className="p-3 border">
-                    {report.BreakTime || report.breakTime || '00:00:00'}
-                  </td>
-                  <td
-                    className="p-3 border"
-                    onMouseMove={(e) => handleMouseMove(e, report.note)}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    {report.note
-                      ? report.note.length > 20
-                        ? `${report.note.slice(0, 20)}...`
-                        : report.note
-                      : '—'}
+
+            {/* Loading Bar (optional) */}
+            {loading && (
+              <tbody>
+                <tr>
+                  <td colSpan="6">
+                    <LoadingBar />
                   </td>
                 </tr>
-              ))}
-            </tbody>
+              </tbody>
+            )}
+
+            {/* Data Rows */}
+            {!loading && (
+              <tbody>
+                {reports.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center text-gray-500 p-6">
+                      No work reports found.
+                    </td>
+                  </tr>
+                ) : (
+                  reports.map((report, index) => (
+                    <tr
+                      key={report.id}
+                      className="hover:bg-gray-50 transition text-center border-b text-gray-800 cursor-pointer"
+                    >
+                      <td className="p-3 border text-gray-800">{index + 1}</td>
+                      <td className="p-3 border text-gray-800">{formatDateTime(report.punchIn)}</td>
+                      <td className="p-3 border text-gray-800">
+                        {report.punchOut ? formatDateTime(report.punchOut) : '—'}
+                      </td>
+                      <td className="p-3 border">{report.totalWorkingHours}</td>
+                      <td className="p-3 border">
+                        {report.BreakTime || report.breakTime || '00:00:00'}
+                      </td>
+                      <td
+                        className="p-3 border"
+                        onMouseMove={(e) => handleMouseMove(e, report.note)}
+                        onMouseLeave={handleMouseLeave}
+                      >
+                        {report.note
+                          ? report.note.length > 20
+                            ? `${report.note.slice(0, 20)}...`
+                            : report.note
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            )}
           </table>
         </div>
-      )}
+      </div>
 
-      {/* 🛠️ Tooltip */}
+
+      {/* 🧠 Tooltip */}
       {showTooltip && hoveredNote && (
         <div
-          className="fixed z-50 bg-blue-50 text-black text-sm px-4 py-2 rounded-lg shadow-lg pointer-events-none"
+          className="fixed z-50 bg-gra-50 text-black text-sm px-4 py-2 rounded-lg shadow-lg pointer-events-none"
           style={{ top: tooltipPosition.y, left: tooltipPosition.x }}
         >
           <span className="font-bold text-base">Note:</span> {hoveredNote}
         </div>
       )}
 
-      {/* ✅ Reusable Pagination Component */}
+      {/* ✅ Pagination */}
       {!loading && totalPages > 1 && (
         <Pagination
           currentPage={currentPage}
