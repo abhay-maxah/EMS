@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import useLeaveStore from '../../store/useLeaveStore';
-import useUserStore from '../../store/useUserStore';
 import useCompanyStore from '../../store/useCompanyStore';
 import { toast } from 'react-toastify';
 import LoadingBar from '../../components/commonComponent/LoadingBar';
@@ -26,23 +25,25 @@ const AllLeaves = () => {
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [adminNote, setAdminNote] = useState('');
 
-  const [selectedUserName, setSelectedUserName] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState('All');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [userList, setUserList] = useState([]);
-
   const fetchLeavesForAdmin = useLeaveStore((state) => state.fetchLeavesForAdmin);
   const fetchLeaveById = useLeaveStore((state) => state.fetchLeaveById);
   const updateLeaveStatus = useLeaveStore((state) => state.updateLeaveStatus);
-  const getUserList = useUserStore((state) => state.getUserList);
   const isCompanyPresent = useCompanyStore((state) => state.isCompanyPresent);
-  const formatDateWithWeekday = (date) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-  };
+
+  const formatDateWithWeekday = (date) =>
+    new Date(date).toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
   const formatDateWithTime = (dateStr) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -56,19 +57,16 @@ const AllLeaves = () => {
     });
   };
 
-
   const getDayName = (date) => new Date(date).toLocaleDateString('en-GB', { weekday: 'short' });
-
   const getDMY = (date) => new Date(date).toLocaleDateString('en-GB');
-
   const norm = (str) => str?.toUpperCase().replace(/\s/g, '_');
-
-  const tickIf = (condition) => condition ? '✓' : '';
+  const tickIf = (condition) => (condition ? '✓' : '');
 
   const loadLeaves = async (page = 1) => {
-    setLoading(true);
+    setLeaves([]);        
+    setLoading(true); 
     const filters = {
-      userName: selectedUserName !== 'All' ? selectedUserName : undefined,
+      userName: searchTerm.trim() || undefined,
       year:
         selectedYear === 'All'
           ? undefined
@@ -78,38 +76,29 @@ const AllLeaves = () => {
     };
 
     try {
-      const response = await fetchLeavesForAdmin({
-        page,
-        limit: 10,
-        ...filters,
-      });
+      const response = await fetchLeavesForAdmin({ page, limit: 10, ...filters });
       if (response?.data) {
-        setLeaves(response.data);
+        setLeaves(response.data);                    
         setTotalPages(response.totalPages || 1);
         setCurrentPage(response.currentPage || 1);
       }
     } catch (err) {
       toast.error('Failed to fetch leave data');
+      setLeaves([]); // Ensure leaves is empty on failure too
     } finally {
-      setLoading(false);
+      setLoading(false); // ✅ End of loading
     }
   };
 
   useEffect(() => {
-    if (isCompanyPresent) {
-      getUserList()
-        .then((users) => {
-          if (Array.isArray(users)) setUserList(users);
-        })
-        .catch(() => {
-          toast.error('Failed to fetch user list');
-        });
-    }
-  }, [isCompanyPresent]);
+    if (!isCompanyPresent) return;
 
-  useEffect(() => {
-    if (isCompanyPresent) loadLeaves(currentPage);
-  }, [isCompanyPresent, currentPage, selectedUserName, selectedYear]);
+    const debounce = setTimeout(() => {
+      loadLeaves(currentPage);
+    }, 400);
+
+    return () => clearTimeout(debounce);
+  }, [searchTerm, selectedYear, currentPage]);
 
   const handleRowClick = async (leaveId) => {
     const data = await fetchLeaveById(leaveId);
@@ -141,9 +130,7 @@ const AllLeaves = () => {
       await updateLeaveStatus(leaveId, newStatus, adminNote);
       setLeaves((prev) =>
         prev.map((leave) =>
-          leave.id === leaveId
-            ? { ...leave, status: newStatus, adminNote }
-            : leave
+          leave.id === leaveId ? { ...leave, status: newStatus, adminNote } : leave
         )
       );
       toast.success('Leave rejected with admin note');
@@ -170,29 +157,23 @@ const AllLeaves = () => {
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-1 h-8 bg-blue-600 rounded"></div>
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-800">
-          Leave Requests
-        </h2>
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-800">Leave Requests</h2>
       </div>
 
+      {/* 🔍 Filters */}
       <div className="mb-4 flex flex-wrap gap-4 items-center">
         <div>
-          <label className="font-medium mr-2">Filter by Username:</label>
-          <select
-            value={selectedUserName}
+          <label className="font-medium mr-2">Search by Username:</label>
+          <input
+            type="text"
+            value={searchTerm}
             onChange={(e) => {
-              setSelectedUserName(e.target.value);
+              setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="border rounded px-3 py-2 text-sm bg-white"
-          >
-            <option value="All">All</option>
-            {userList.map((user) => (
-              <option key={user.userName} value={user.userName}>
-                {user.userName}
-              </option>
-            ))}
-          </select>
+            placeholder="Enter username"
+            className="border rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
         </div>
 
         <div>
@@ -212,6 +193,7 @@ const AllLeaves = () => {
         </div>
       </div>
 
+      {/* 📝 Table */}
       <div className="relative overflow-x-auto rounded-xl shadow-md">
         <table className="min-w-full bg-white border border-gray-200 rounded-xl">
           <thead className="bg-gray-100">
@@ -226,7 +208,6 @@ const AllLeaves = () => {
             </tr>
           </thead>
 
-          {/* ✅ Loading bar row */}
           {loading && (
             <tbody>
               <tr>

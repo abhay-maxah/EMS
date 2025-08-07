@@ -3,7 +3,6 @@ import {
   IsOptional,
   IsString,
   IsEnum,
-  IsInt,
   Min,
   IsDateString,
   ValidateNested,

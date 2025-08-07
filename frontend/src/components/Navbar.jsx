@@ -78,13 +78,9 @@ const Navbar = () => {
                   </Link>
                   <Link to="/all-users" className={linkClass("/all-users")}>
                     All Users
-                  </Link>
-                  <Link to="/company" className={linkClass("/company")} onClick={() => setMenuOpen(false)}>
-                    Company
-                  </Link>
+                    </Link>
                 </>
-              )}
-
+                )}
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 rounded-md text-red-500 hover:text-red-700 hover:bg-red-50"
@@ -137,9 +133,7 @@ const Navbar = () => {
                   <Link to="/all-users" className={linkClass("/all-users")} onClick={() => setMenuOpen(false)}>
                     All Users
                   </Link>
-                  <Link to="/company" className={linkClass("/company")} onClick={() => setMenuOpen(false)}>
-                    Company
-                  </Link>
+
                 </>
               )}
 

@@ -2,20 +2,22 @@ import { useEffect, useState } from 'react';
 import useUserStore from '../../store/useUserStore';
 import useCompanyStore from '../../store/useCompanyStore';
 import { toast } from 'react-toastify';
-import LoadingSpinner from '../../components/LoadingSpinner';
+import LoadingBar from '../../components/commonComponent/LoadingBar';
 import { useNavigate } from 'react-router-dom';
+
 const UserList = () => {
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [formState, setFormState] = useState({});
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { isCompanyPresent } = useCompanyStore(); 
+  const { isCompanyPresent } = useCompanyStore();
 
   const { getAllUsers, updateUserInfo, deleteUser, user } = useUserStore();
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
   const navigate = useNavigate();
+
   useEffect(() => {
     if (!isCompanyPresent) return;
 
@@ -159,10 +161,61 @@ const UserList = () => {
         </p>
       </div>
     );
-    }
+  }
+
+  const renderField = (label, field, type = 'text') => {
+    const value = formState[selectedUser?.id]?.[field] || '';
+    const handleChange = (e) =>
+      handleInputChange(selectedUser.id, field, e.target.value);
+
+    const renderInput = () => {
+      if (type === 'select') {
+        const options =
+          field === 'Gender'
+            ? ['Male', 'Female']
+            : ['user', 'admin'];
+
+        return (
+          <select
+            value={value}
+            onChange={handleChange}
+            className="w-full border border-gray-300 rounded px-3 py-2"
+          >
+            {options.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt || 'Select'}
+              </option>
+            ))}
+          </select>
+        );
+      }
+
+      return (
+        <input
+          type={type}
+          value={value}
+          onChange={handleChange}
+          className="w-full border border-gray-300 rounded px-3 py-2"
+        />
+      );
+    };
+
+    return (
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1">
+          {label}
+        </label>
+        {editMode ? (
+          renderInput()
+        ) : (
+          <p className="text-gray-800">{value || '—'}</p>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
-     
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-1 h-8 bg-blue-600 rounded"></div>
@@ -176,28 +229,32 @@ const UserList = () => {
         </button>
       </div>
 
-
-      {/* 🔄 Loading Spinner */}
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <LoadingSpinner />
-        </div>
-      ) : users.length === 0 ? (
-        <p className="text-center text-gray-500">No users found.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-xl shadow-md">
-          <table className="min-w-full bg-white border border-gray-200 rounded-xl">
-            <thead className="bg-gray-100">
+      <div className="overflow-x-auto rounded-xl shadow-md">
+        <table className="min-w-full bg-white border border-gray-200 rounded-xl">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="px-4 py-2 border">Sr No</th>
+              <th className="px-4 py-2 border">Name</th>
+              <th className="px-4 py-2 border">Email</th>
+              <th className="px-4 py-2 border">Role</th>
+              <th className="px-4 py-2 border">Team</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th className="px-4 py-2 border">Sr No</th>
-                <th className="px-4 py-2 border">Name</th>
-                <th className="px-4 py-2 border">Email</th>
-                <th className="px-4 py-2 border">Role</th>
-                <th className="px-4 py-2 border">Team</th>
+                <td colSpan="5" className="p-0">
+                  <LoadingBar />
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {users.map((user, index) => (
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="text-center py-4 text-gray-500">
+                  No users found.
+                </td>
+              </tr>
+            ) : (
+              users.map((user, index) => (
                 <tr
                   key={user.id}
                   className="hover:bg-gray-50 cursor-pointer"
@@ -206,9 +263,7 @@ const UserList = () => {
                     setEditMode(false);
                   }}
                 >
-                  <td className="px-4 py-2.5 border text-center">
-                    {index + 1}
-                  </td>
+                  <td className="px-4 py-2.5 border text-center">{index + 1}</td>
                   <td className="px-4 py-2 border">
                     {user.userInfo?.name || '—'} ({user.userName})
                   </td>
@@ -216,13 +271,12 @@ const UserList = () => {
                   <td className="px-4 py-2 border">{user.role}</td>
                   <td className="px-4 py-2 border">{user.team || '—'}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {/* Modal Section */}
       {selectedUser && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-lg p-6 relative">
@@ -237,70 +291,24 @@ const UserList = () => {
             </h3>
 
             <div className="space-y-4">
-              {[
-                { label: 'Name', field: 'name' },
-                { label: 'Team', field: 'team' },
-                { label: 'Total Leave Days', field: 'totalLeaveDays', type: 'number' },
-                { label: 'Address', field: 'address' },
-                { label: 'City', field: 'city' },
-                { label: 'State', field: 'state' },
-                { label: 'DOB', field: 'DOB', type: 'date' },
-                { label: 'Joining Date', field: 'JoiningDate', type: 'date' },
-                { label: 'Gender', field: 'Gender' },
-                { label: 'Role', field: 'role' },
-              ].map(({ label, field, type = 'text' }) => (
-                <div key={field}>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    {label}
-                  </label>
-                  {editMode ? (
-                    field === 'Gender' || field === 'role' ? (
-                      <select
-                        value={formState[selectedUser.id]?.[field]}
-                        onChange={(e) =>
-                          handleInputChange(
-                            selectedUser.id,
-                            field,
-                            e.target.value
-                          )
-                        }
-                        className="w-full border border-gray-300 rounded px-3 py-2"
-                      >
-                        {field === 'Gender' ? (
-                          <>
-                            <option value="">Select</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                          </>
-                        )}
-                      </select>
-                    ) : (
-                      <input
-                        type={type}
-                        value={formState[selectedUser.id]?.[field]}
-                        onChange={(e) =>
-                          handleInputChange(
-                            selectedUser.id,
-                            field,
-                            e.target.value
-                          )
-                        }
-                        className="w-full border border-gray-300 rounded px-3 py-2"
-                      />
-                    )
-                  ) : (
-                    <p className="text-gray-800">
-                      {formState[selectedUser.id]?.[field] || '—'}
-                    </p>
-                  )}
-                </div>
-              ))}
+              {renderField('Name', 'name')}
+              <div className="grid grid-cols-2 gap-4">
+                {renderField('Team', 'team')}
+                {renderField('Total Leave Days', 'totalLeaveDays', 'number')}
+              </div>
+              {renderField('Address', 'address')}
+              <div className="grid grid-cols-2 gap-4">
+                {renderField('City', 'city')}
+                {renderField('State', 'state')}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {renderField('DOB', 'DOB', 'date')}
+                {renderField('Joining Date', 'JoiningDate', 'date')}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {renderField('Gender', 'Gender', 'select')}
+                {renderField('Role', 'role', 'select')}
+              </div>
             </div>
 
             <div className="mt-6 flex justify-between">
@@ -330,9 +338,8 @@ const UserList = () => {
                   <button
                     onClick={() => handleDelete(selectedUser.id)}
                     className={`flex-1 px-4 py-2 ${isSelf
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-red-500 hover:bg-red-600'
-                      } text-white rounded`}
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-red-500 hover:bg-red-600'} text-white rounded`}
                     disabled={isSelf}
                   >
                     Delete
@@ -340,6 +347,7 @@ const UserList = () => {
                 </>
               )}
             </div>
+
             {isSelf && (
               <p className="text-xs text-center text-gray-500 mt-2">
                 ⚠️ You cannot delete your own account.

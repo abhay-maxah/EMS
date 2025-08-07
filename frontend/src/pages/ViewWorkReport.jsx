@@ -16,6 +16,17 @@ const formatDateTime = (dateString) => {
   });
 };
 
+const formatTime = (dateString) => {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+};        
+
 const ViewWorkReport = () => {
   const { user, userInfo } = useUserStore();
   const { fetchUserReports } = useReportStore();
@@ -146,6 +157,7 @@ const ViewWorkReport = () => {
             <thead className="bg-gray-50 text-gray-700">
               <tr>
                 <th className="p-3 text-sm border">S.No</th>
+                <th className="p-3 text-sm border">Date</th>
                 <th className="p-3 text-sm border">Clock In</th>
                 <th className="p-3 text-sm border">Clock Out</th>
                 <th className="p-3 text-sm border">Total Hours</th>
@@ -154,23 +166,19 @@ const ViewWorkReport = () => {
               </tr>
             </thead>
 
-            {/* Loading Bar (optional) */}
-            {loading && (
+            {loading ? (
               <tbody>
                 <tr>
-                  <td colSpan="6">
+                  <td colSpan="7">
                     <LoadingBar />
                   </td>
                 </tr>
               </tbody>
-            )}
-
-            {/* Data Rows */}
-            {!loading && (
+            ) : (
               <tbody>
                 {reports.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center text-gray-500 p-6">
+                      <td colSpan="7" className="text-center text-gray-500 p-6">
                       No work reports found.
                     </td>
                   </tr>
@@ -180,10 +188,19 @@ const ViewWorkReport = () => {
                       key={report.id}
                       className="hover:bg-gray-50 transition text-center border-b text-gray-800 cursor-pointer"
                     >
-                      <td className="p-3 border text-gray-800">{index + 1}</td>
-                      <td className="p-3 border text-gray-800">{formatDateTime(report.punchIn)}</td>
+                      <td className="p-3 border">{index + 1}</td>
+                      <td className="p-3 border">
+                        {report.punchIn
+                          ? new Date(report.punchIn).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                          : '—'}
+                      </td>
+                      <td className="p-3 border text-gray-800">{formatTime(report.punchIn)}</td>
                       <td className="p-3 border text-gray-800">
-                        {report.punchOut ? formatDateTime(report.punchOut) : '—'}
+                        {report.punchOut ? formatTime(report.punchOut) : '—'}
                       </td>
                       <td className="p-3 border">{report.totalWorkingHours}</td>
                       <td className="p-3 border">
@@ -209,11 +226,10 @@ const ViewWorkReport = () => {
         </div>
       </div>
 
-
       {/* 🧠 Tooltip */}
       {showTooltip && hoveredNote && (
         <div
-          className="fixed z-50 bg-gra-50 text-black text-sm px-4 py-2 rounded-lg shadow-lg pointer-events-none"
+          className="fixed z-50 bg-gray-50 text-black text-sm px-4 py-2 rounded-lg shadow-lg pointer-events-none"
           style={{ top: tooltipPosition.y, left: tooltipPosition.x }}
         >
           <span className="font-bold text-base">Note:</span> {hoveredNote}

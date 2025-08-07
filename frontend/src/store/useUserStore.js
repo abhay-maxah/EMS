@@ -5,7 +5,7 @@ const useUserStore = create((set,get) => ({
   user: null,
   userInfo: null,
   loading: false,
-  addUser: async ({ username, email, password, role, companyId, createdById }) => {
+  addUser: async ({ username, email, team, password, role, companyId, createdById }) => {
     set({ loading: true });
     try {
       const res = await axiosInstance.post("/auth/add-user", {
@@ -13,6 +13,7 @@ const useUserStore = create((set,get) => ({
         email,
         password,
         role,
+        team,
         companyId,
         createdById,
       });
@@ -56,26 +57,33 @@ const useUserStore = create((set,get) => ({
   
   updateUserInfo: async (userId, updateData) => {
     set({ loading: true });
+
     try {
-      const res = await axiosInstance.patch(`/user/${userId}`, updateData);
+      await axiosInstance.patch(`/user/${userId}`, updateData);
 
-      const updated = res.data?.data;
+      const currentUserId = get().user?.id;
 
-      set({
-        user: {
-          id: updated.id,
-          email: updated.email,
-          role: updated.role,
-          team: updated.team,
-          totalLeaveDays: updated.totalLeaveDays,
-          createdAt: updated.createdAt,
-          updatedAt: updated.updatedAt,
-        },
-        userInfo: updated.userInfo ?? null,
-        loading: false,
-      });
-      await get().fetchCurrentUser();
-      return { success: true, data: updated };
+      if (userId === currentUserId) {
+        const prev = get();
+
+        set({
+          user: {
+            ...prev.user,
+            team: updateData.team ?? prev.user.team,
+            subteam: updateData.subteam ?? prev.user.subteam,
+            totalLeaveDays: updateData.totalLeaveDays ?? prev.user.totalLeaveDays,
+          },
+          userInfo: updateData.userInfo
+            ? {
+              ...prev.userInfo,
+              ...updateData.userInfo,
+            }
+            : prev.userInfo,
+        });
+      }
+
+      set({ loading: false });
+      return { success: true };
     } catch (err) {
       set({ loading: false });
 
@@ -92,6 +100,7 @@ const useUserStore = create((set,get) => ({
       };
     }
   },
+
   
   fetchCurrentUser: async () => {
     set({ loading: true });
@@ -107,6 +116,7 @@ const useUserStore = create((set,get) => ({
           email: userData.email,
           role: userData.role,
           team: userData.team,
+          subteam: userData.subteam,
           userName: userData.userName,
           companyId: userData.companyId,
           totalLeaveDays: userData.totalLeaveDays,
@@ -156,15 +166,6 @@ const useUserStore = create((set,get) => ({
     } catch (err) {
       console.error("Failed to delete user:", err);
       return { success: false, message: err.response?.data?.message || "Something went wrong" };
-    }
-  },
-  getUserList: async () => {
-    try {
-      const res = await axiosInstance.get('/user/all-users');
-      return res.data;
-    } catch (err) {
-      console.error('Failed to fetch users:', err);
-      return [];
     }
   },
 }));

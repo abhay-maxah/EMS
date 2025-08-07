@@ -254,14 +254,15 @@ export class LeaveService {
       };
     }
 
-    // Combined filter: companyId, optional userName, and date
-    const where = {
-      ...dateFilter,
-      user: {
-        companyId,
-        ...(userName ? { userName: { equals: userName } } : {}),
-      },
-    };
+   const where = {
+     ...dateFilter,
+     user: {
+       companyId,
+       userName: {
+         contains: userName,
+       },
+     },
+   };
 
     // Get paginated leave data
     const data = await this.prisma.leave.findMany({

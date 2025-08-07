@@ -71,6 +71,7 @@ export class AttendanceService {
 
     const response = users.map((user) => ({
       name: user.userInfo?.name,
+      userName: user.userName,
       team: user.team,
       subteam: user.subteam,
       today: generateStatus(user, targetDateString),

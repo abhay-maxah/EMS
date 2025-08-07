@@ -49,16 +49,23 @@ const Clock = () => {
 
   useEffect(() => {
     if (!userId) return;
+
     const stored = JSON.parse(localStorage.getItem(getStorageKey()));
     if (stored?.isClockedIn && stored?.clockInTimestamp) {
-      const elapsed = Math.floor(
-        (Date.now() - new Date(stored.clockInTimestamp).getTime()) / 1000
-      );
       setIsClockedIn(true);
       setClockInTimestamp(stored.clockInTimestamp);
-      setWorkSeconds(elapsed);
       setIsOnBreak(stored.isOnBreak || false);
       setCurrentReportId(stored.reportId || null);
+
+      const savedWorkSeconds = stored.workSeconds || 0;
+      if (!stored.isOnBreak) {
+        const elapsed = Math.floor(
+          (Date.now() - new Date(stored.lastUpdated || stored.clockInTimestamp).getTime()) / 1000
+        );
+        setWorkSeconds(savedWorkSeconds + elapsed);
+      } else {
+        setWorkSeconds(savedWorkSeconds);
+      }
     }
   }, [userId]);
 
@@ -81,6 +88,7 @@ const Clock = () => {
 
   useEffect(() => {
     if (!userId) return;
+
     if (isClockedIn) {
       localStorage.setItem(
         getStorageKey(),
@@ -89,12 +97,14 @@ const Clock = () => {
           isOnBreak,
           clockInTimestamp,
           reportId: currentReportId,
+          workSeconds,
+          lastUpdated: new Date().toISOString(),
         })
       );
     } else {
       localStorage.removeItem(getStorageKey());
     }
-  }, [isClockedIn, isOnBreak, clockInTimestamp, currentReportId, userId]);
+  }, [isClockedIn, isOnBreak, clockInTimestamp, currentReportId, workSeconds, userId]);
 
   const formatWorkDuration = (seconds) => {
     const hrs = Math.floor(seconds / 3600).toString().padStart(2, '0');
@@ -122,7 +132,7 @@ const Clock = () => {
       setIsOnBreak(false);
       setWorkSeconds(0);
       setLastWorkDuration(null);
-      toast.success('🟢 Clock In successful!');
+      toast.success('Clock In successful!');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Clock In failed');
     }
@@ -143,10 +153,9 @@ const Clock = () => {
       setClockInTimestamp(null);
       setCurrentReportId(null);
       setLastWorkDuration(totalWorkingHours);
-
       setShowNoteModal(false);
       setNoteInput('');
-      toast.success('🔴 Clock Out successful!');
+      toast.success('Clock Out successful!');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Clock Out failed');
     }
@@ -156,71 +165,64 @@ const Clock = () => {
   const handleResumeWork = () => setIsOnBreak(false);
 
   if (!userId) return <LoadingSpinner />;
-
   const userName = user?.name || userInfo?.name || 'Guest';
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-3xl mx-auto">
+    <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-3xl mx-auto space-y-10">
       {/* Header */}
-      <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-blue-700 mb-1">
-          {company?.name || 'Company Name'}
-        </h1>
-        <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
-          <FaClock /> {time.toLocaleString()}
-        </div>
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold text-blue-700">{company?.name || 'Company Name'}</h1>
+
       </div>
 
       {/* Alerts */}
       {(!userName || userName === 'Guest') && (
-        <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-xl mb-4 shadow-sm">
+        <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-xl shadow-sm">
           <span className="flex items-center gap-2">
             <FaExclamationTriangle className="text-red-600" />
             Please complete your profile.
           </span>
-          <Link
-            to="/profile"
-            className="text-sm underline hover:text-red-800 font-medium"
-          >
+          <Link to="/profile" className="text-sm underline font-medium hover:text-red-800">
             Fix Profile
           </Link>
         </div>
       )}
 
       {!company?.name && (
-        <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-xl mb-4 shadow-sm">
+        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 text-blue-800 px-4 py-2 rounded-xl shadow-sm">
           <span className="flex items-center gap-2">
-            <FaInfoCircle className="text-yellow-500" />
+            <FaInfoCircle className="text-blue-500" />
             Company details missing.
           </span>
-          <Link
-            to="/company"
-            className="text-sm underline hover:text-yellow-900 font-medium"
-          >
+          <Link to="/profile" className="text-sm underline font-medium hover:text-blue-900">
             Fix Company
           </Link>
         </div>
       )}
 
       {/* Greeting */}
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-semibold">{getGreeting()}, {userName} 👋</h2>
-        <p
-          className={`mt-2 text-lg font-medium ${!isClockedIn
-            ? 'text-gray-600'
-            : isOnBreak
-              ? 'text-yellow-500'
-              : 'text-green-600'
-            }`}
-        >
-          {!isClockedIn
-            ? 'You have not started working yet.'
-            : isOnBreak
-              ? 'You are currently on break.'
-              : 'You are currently working.'}
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl font-semibold">
+          {getGreeting()}, {userName} 👋
+        </h2>
+        <p className="text-lg font-medium text-gray-900">
+          {!isClockedIn ? (
+            <>
+              You have not started <span className="text-black">working</span> yet.
+            </>
+          ) : isOnBreak ? (
+            <>
+              You are currently on <span className="text-blue-600">break</span>.
+            </>
+          ) : (
+            <>
+              You are currently <span className="text-blue-600">working</span>.
+            </>
+          )}
         </p>
+
         {clockInTimestamp && (
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-gray-500">
             Clocked in at: {new Date(clockInTimestamp).toLocaleTimeString()}
           </p>
         )}
@@ -228,28 +230,29 @@ const Clock = () => {
 
       {/* Work Timer */}
       {isClockedIn && (
-        <div className="text-center mb-6">
-          <div className="text-6xl font-mono font-bold text-blue-600">
-            {formatWorkDuration(workSeconds)}
+        <div className="text-center">
+          <div className="flex justify-center gap-1 text-6xl font-mono font-bold leading-none">
+            {formatWorkDuration(workSeconds).split('').map((char, idx) => (
+              <DigitSlide key={idx} value={char} isStatic={!/\d/.test(char)} />
+            ))}
           </div>
         </div>
       )}
 
-      {/* Work Summary */}
+      {/* Summary */}
       {!isClockedIn && lastWorkDuration && (
-        <div className="mb-6 text-center text-lg text-gray-700">
+        <div className="text-center text-lg text-gray-700">
           ✅ You worked{' '}
-          <span className="text-blue-600 font-bold">{lastWorkDuration}</span>{' '}
-          today. Great job!
+          <span className="text-blue-600 font-bold">{lastWorkDuration}</span> today. Great job!
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap justify-center gap-4">
+      {/* Actions */}
+      <div className="flex flex-wrap justify-center gap-6 pt-2">
         {!isClockedIn ? (
           <button
             onClick={handleClockIn}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
           >
             <FaPlay /> Clock In
           </button>
@@ -258,21 +261,21 @@ const Clock = () => {
             {!isOnBreak ? (
               <button
                 onClick={handleTakeBreak}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
               >
                   <FaPause /> Take a Break
               </button>
             ) : (
               <button
                 onClick={handleResumeWork}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
               >
                     <FaPlay /> Resume Work
               </button>
             )}
             <button
               onClick={handleClockOut}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-md flex items-center gap-2"
             >
                 <FaSignOutAlt /> Clock Out
             </button>
@@ -284,9 +287,7 @@ const Clock = () => {
       {showNoteModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white rounded-2xl p-6 w-[90%] max-w-lg shadow-2xl">
-            <h2 className="text-xl font-bold mb-3">
-              📝 Add a note before Clocking Out
-            </h2>
+            <h2 className="text-xl font-bold mb-3">📝 Add a note before Clocking Out</h2>
             <textarea
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
@@ -310,9 +311,73 @@ const Clock = () => {
             </div>
           </div>
         </div>
+
       )}
+
     </div>
   );
 };
 
 export default Clock;
+
+
+
+const DigitSlide = ({ value, isStatic = false }) => {
+  const [previousValue, setPreviousValue] = useState(value);
+  const [isFlipping, setIsFlipping] = useState(false);
+
+  useEffect(() => {
+    if (value !== previousValue) {
+      setIsFlipping(true);
+      const timeout = setTimeout(() => {
+        setPreviousValue(value);
+        setIsFlipping(false);
+      }, 750); // Match animation duration
+      return () => clearTimeout(timeout);
+    }
+  }, [value, previousValue]);
+
+  if (isStatic) {
+    return (
+      <div className="w-[40px] h-[64px] flex items-center justify-center text-5xl font-mono text-blue-700">
+        {value}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-[40px] h-[64px] relative" style={{ perspective: '800px' }}>
+      {/* Previous Value Rolling Out */}
+      <div
+        className="absolute w-full h-full flex items-center justify-center text-5xl font-mono text-blue-700 bg-white"
+        style={{
+          backfaceVisibility: 'hidden',
+          transformStyle: 'preserve-3d',
+          transformOrigin: 'center',
+          transition: 'transform 0.6s ease-in-out, opacity 0.6s ease-in-out',
+          transform: isFlipping ? 'rotateY(90deg) translateZ(0)' : 'rotateY(0deg)',
+          opacity: isFlipping ? 0 : 1,
+          zIndex: isFlipping ? 1 : 2,
+        }}
+      >
+        {previousValue}
+      </div>
+
+      {/* New Value Rolling In */}
+      <div
+        className="absolute w-full h-full flex items-center justify-center text-5xl font-mono text-blue-700 bg-white"
+        style={{
+          backfaceVisibility: 'hidden',
+          transformStyle: 'preserve-3d',
+          transformOrigin: 'center',
+          transition: 'transform 0.6s ease-in-out, opacity 0.6s ease-in-out',
+          transform: isFlipping ? 'rotateY(0deg)' : 'rotateY(-90deg)',
+          opacity: isFlipping ? 1 : 0,
+          zIndex: isFlipping ? 2 : 1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+};

@@ -3,16 +3,6 @@ import useLeaveStore from '../store/useLeaveStore';
 import Pagination from '../components/commonComponent/Pagination';
 import LoadingBar from '../components/commonComponent/LoadingBar';
 
-const formatDateTable = (isoDate) => {
-  if (!isoDate) return '—';
-  const d = new Date(isoDate);
-  return d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-};
-
 const formatDateWithWeekday = (isoDate) => {
   if (!isoDate) return '—';
   const d = new Date(isoDate);

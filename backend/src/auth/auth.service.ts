@@ -83,6 +83,7 @@ export class AuthService {
       password,
       role = 'user',
       username,
+      team,
       companyId,
       createdById,
     } = registerDto;
@@ -148,6 +149,7 @@ export class AuthService {
         email,
         password: hashedPassword,
         role,
+        team,
         userName: username,
         companyId: userCompanyId,
         createdById: createdById || null,

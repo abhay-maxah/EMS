@@ -16,7 +16,6 @@ import AllLeaves from "./pages/Admin/AllLeaves";
 import AllReport from "./pages/Admin/AllReport";
 import UserList from "./pages/Admin/UserList";
 import ProfilePage from "./pages/ProfilePage";
-import CompanyPage from "./pages/CompanyPage";
 import AddUser from "./components/AddUser";
 function App() {
   const { user, fetchCurrentUser } = useUserStore();
@@ -59,7 +58,7 @@ function App() {
           path="/work-report"
           element={user ? <ViewWorkReport /> : <Navigate to="/login" />}
         />
-        <Route path="/company" element={user ? <CompanyPage /> : <Navigate to="/login" />} />
+
         <Route
           path="/past-leaves"
           element={user ? <ViewPastLeaves /> : <Navigate to="/login" />}

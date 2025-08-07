@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react';
 import useReportStore from '../../store/useReportStore';
-import useUserStore from '../../store/useUserStore';
 import useCompanyStore from '../../store/useCompanyStore';
 import Pagination from '../../components/commonComponent/pagination';
 import LoadingBar from '../../components/commonComponent/LoadingBar';
 
 const AllReport = () => {
   const { fetchAllReports, loading } = useReportStore();
-  const { getUserList } = useUserStore();
   const { isCompanyPresent } = useCompanyStore();
 
-  const [userList, setUserList] = useState([]);
   const [reports, setReports] = useState([]);
-
-  const [nameFilter, setNameFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('All');
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -23,11 +19,14 @@ const AllReport = () => {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState(false);
 
+  const [initialLoad, setInitialLoad] = useState(true);
+
   const getReports = async ({ page = 1, name = '', dateRange = 'All' }) => {
     if (!isCompanyPresent) return;
 
     try {
-      const filterName = name === 'All' ? '' : name;
+      const filterName = name.trim();
+      setInitialLoad(true);
 
       let apiDateRange;
       switch (dateRange) {
@@ -55,29 +54,24 @@ const AllReport = () => {
       setTotalPages(totalPages || 1);
     } catch (err) {
       console.error('Failed to load reports:', err.message);
+    } finally {
+      setInitialLoad(false);
     }
   };
 
   useEffect(() => {
     if (!isCompanyPresent) return;
 
-    const fetchUsers = async () => {
-      const users = await getUserList();
-      setUserList(users || []);
-    };
-    fetchUsers();
-  }, [isCompanyPresent]);
+    const delayDebounce = setTimeout(() => {
+      getReports({ page: 1, name: searchTerm, dateRange: dateFilter });
+    }, 500);
 
-  useEffect(() => {
-    if (!isCompanyPresent) return;
-
-    getReports({ page: 1, name: nameFilter, dateRange: dateFilter });
-  }, [nameFilter, dateFilter, isCompanyPresent]);
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm, dateFilter, isCompanyPresent]);
 
   const handlePageChange = (newPage) => {
     if (!isCompanyPresent) return;
-
-    getReports({ page: newPage, name: nameFilter, dateRange: dateFilter });
+    getReports({ page: newPage, name: searchTerm, dateRange: dateFilter });
   };
 
   const formatDate = (dateString) => {
@@ -87,7 +81,7 @@ const AllReport = () => {
   };
 
   const handleMouseMove = (e, note) => {
-    if (note && note.length > 10) {
+    if (note && note.length > 7) {
       setTooltipPosition({ x: e.clientX + 15, y: e.clientY + 15 });
       setHoveredNote(note);
       setShowTooltip(true);
@@ -124,19 +118,14 @@ const AllReport = () => {
       {/* 🔍 Filters */}
       <div className="mb-4 flex flex-wrap gap-4 items-center">
         <div className="flex items-center gap-2">
-          <label className="font-medium">Filter by UserName:</label>
-          <select
-            value={nameFilter}
-            onChange={(e) => setNameFilter(e.target.value)}
+          <label className="font-medium">Search by Username:</label>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Enter username"
             className="p-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            <option value="All">All</option>
-            {userList.map((user) => (
-              <option key={user.userName} value={user.userName}>
-                {user.name} ({user.userName})
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <div className="flex items-center gap-2">
@@ -156,13 +145,12 @@ const AllReport = () => {
 
       {/* 📄 Reports Table */}
       <div className="overflow-auto rounded-xl shadow-md">
-        <table className="w-full border border-gray-200 rounded-xl">
+        <table className="w-full border border-gray-200 rounded-xl table-fixed">
           <thead className="bg-gray-100">
             <tr>
               <th className="border px-4 py-3 text-left text-sm font-semibold">Sr No.</th>
               <th className="border px-4 py-3 text-left text-sm font-semibold">Date</th>
               <th className="border px-4 py-3 text-left text-sm font-semibold">Name</th>
-              <th className="border px-4 py-3 text-left text-sm font-semibold">Email</th>
               <th className="border px-4 py-3 text-left text-sm font-semibold">Punch In</th>
               <th className="border px-4 py-3 text-left text-sm font-semibold">Punch Out</th>
               <th className="border px-4 py-3 text-left text-sm font-semibold">Total Hours</th>
@@ -171,16 +159,15 @@ const AllReport = () => {
             </tr>
           </thead>
 
-          <tbody>
-            {loading && (
+          {/* ✅ Fixed height tbody wrapper */}
+          <tbody className="min-h-[400px]">
+            {loading || initialLoad ? (
               <tr>
-                <td colSpan="9" className="px-4 py-2">
+                <td colSpan="8" >
                   <LoadingBar />
                 </td>
               </tr>
-            )}
-
-            {!loading && reports.length > 0 ? (
+            ) : reports.length > 0 ? (
               reports.map((report, index) => (
                 <tr
                   key={report.id}
@@ -191,7 +178,6 @@ const AllReport = () => {
                   <td className="border px-4 py-2">
                     {report.name} ({report.userName})
                   </td>
-                  <td className="border px-4 py-2">{report.email || '—'}</td>
                   <td className="border px-4 py-2">
                     {report.punchIn
                       ? new Date(report.punchIn).toLocaleTimeString([], { hour12: true })
@@ -205,26 +191,26 @@ const AllReport = () => {
                   <td className="border px-4 py-2">{report.totalWorkingHours || '—'}</td>
                   <td className="border px-4 py-2">{report.breakTime || '—'}</td>
                   <td
-                    className="border px-4 py-2"
+                    className="border px-4 py-2 max-w-[200px] truncate overflow-hidden whitespace-nowrap"
                     onMouseMove={(e) => handleMouseMove(e, report.note)}
                     onMouseLeave={handleMouseLeave}
                   >
+                    {report.note || '—'}
+
                     {report.note
-                      ? report.note.length > 20
-                        ? `${report.note.slice(0, 20)}...`
+                      ? report.note.length > 10
+                        ? `${report.note.slice(0, 10)}...`
                         : report.note
                       : '—'}
                   </td>
                 </tr>
               ))
-            ) : (
-                !loading && (
-                <tr>
-                  <td colSpan="9" className="border px-4 py-4 text-center text-gray-500">
-                    No reports found.
-                  </td>
-                </tr>
-                )
+              ) : (
+                  <tr>
+                    <td colSpan="9" className="border px-4 py-4 text-center text-gray-500">
+                      No reports found.
+                    </td>
+                  </tr>
             )}
           </tbody>
         </table>
@@ -239,14 +225,15 @@ const AllReport = () => {
           <span className="font-bold text-base">Note:</span> {hoveredNote}
         </div>
       )}
+
       {/* 📦 Pagination */}
-      {!loading && (
+      <div className="mt-6">
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
         />
-      )}
+      </div>
     </div>
   );
 };

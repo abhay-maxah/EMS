@@ -1,31 +1,61 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import useUserStore from "../store/useUserStore";
 import useCompanyStore from "../store/useCompanyStore";
 import { toast } from "react-toastify";
-import { FaUserEdit, FaSave } from "react-icons/fa";
-import { MdCancel } from "react-icons/md";
 import LoadingSpinner from "../components/LoadingSpinner";
 
 const ProfilePage = () => {
-  const { user, fetchCurrentUser, userInfo, updateUserInfo } = useUserStore();
-  const { company, getCompanyById, updateCompany } = useCompanyStore();
+  const hasFetchedCompany = useRef(false);
+  const { user, userInfo, updateUserInfo } = useUserStore();
+  const {
+    company,
+    getCompanyById,
+    updateCompany,
+    createCompany,
+    isCompanyPresent,
+  } = useCompanyStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(null);
-  const [companyForm, setCompanyForm] = useState({ name: "", address: "" });
+  const [companyForm, setCompanyForm] = useState({
+    name: "",
+    address: "",
+  });
 
   useEffect(() => {
-    fetchCurrentUser();
-  }, []);
+    const fetchOrCreateCompany = async () => {
+      if (!user?.companyId || isCompanyPresent || hasFetchedCompany.current) return;
+
+      hasFetchedCompany.current = true;
+
+      try {
+        const res = await getCompanyById(user.companyId);
+
+        if (!res || !res.name) {
+          const newCompanyData = {
+            name: `${user.userName || "New"}'s Company`,
+            address: "",
+          };
+
+          const createdCompany = await createCompany(newCompanyData);
+
+          toast.success("Company profile created successfully.");
+          setCompanyForm({
+            name: createdCompany.name || "",
+            address: createdCompany.address || "",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch or create company", err);
+      }
+    };
+
+    fetchOrCreateCompany();
+  }, [user?.companyId, isCompanyPresent]);
 
   useEffect(() => {
-    if (user?.companyId) {
-      getCompanyById(user.companyId);
-    }
-  }, [user?.companyId]);
-
-  useEffect(() => {
-    if (user && userInfo) {
+    if (user) {
+      const info = userInfo || {};
       const {
         name = "",
         Gender = "",
@@ -34,7 +64,8 @@ const ProfilePage = () => {
         address = "",
         city = "",
         state = "",
-      } = userInfo;
+        phoneNumber = "",
+      } = info;
 
       setFormData({
         name,
@@ -44,7 +75,9 @@ const ProfilePage = () => {
         address,
         city,
         state,
+        phoneNumber,
         team: user.team || "",
+        subteam: user.subteam || "", // ✅ included
         totalLeaveDays: user.totalLeaveDays || 0,
       });
     }
@@ -55,10 +88,23 @@ const ProfilePage = () => {
         address: company.address || "",
       });
     }
-  }, [user, userInfo, company]);
+  }, [userInfo, company]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "phoneNumber") {
+      if (!/^\d*$/.test(value)) return;
+      if (value.length > 10) return;
+
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: name === "team" ? value.toUpperCase() : value,
@@ -67,30 +113,49 @@ const ProfilePage = () => {
 
   const handleSave = async () => {
     const userId = user.id;
-    const {
-      name,
-      Gender,
-      DOB,
-      JoiningDate,
-      address,
-      city,
-      state,
-      team,
-      totalLeaveDays,
-    } = formData;
+
+    // 🔐 Only allow 'user' to update subteam
+    if (user.role === "user") {
+      try {
+        const res = await updateUserInfo(userId, { subteam: formData.subteam });
+
+        if (res.success) {
+          toast.success("Subteam updated successfully");
+          setIsEditing(false);
+        } else {
+          toast.error(res.error || "Update failed");
+        }
+      } catch (error) {
+        toast.error("An unexpected error occurred");
+        console.error(error);
+      }
+
+      return;
+    }
+
+    // For admin role
+    const phone = formData.phoneNumber;
+
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      toast.error("Phone number must be 10 digits and start with 6, 7, 8, or 9.");
+      return;
+    }
 
     const payload = {
-      team: team?.toUpperCase(),
+      team: formData.team?.toUpperCase(),
+      subteam: formData.subteam,
       role: user.role,
-      totalLeaveDays: user.role === "admin" ? parseFloat(totalLeaveDays) : user.totalLeaveDays,
+      totalLeaveDays:
+        user.role === "admin" ? parseFloat(formData.totalLeaveDays) : user.totalLeaveDays,
       userInfo: {
-        name,
-        Gender,
-        DOB: DOB ? new Date(DOB).toISOString() : null,
-        JoiningDate: JoiningDate ? new Date(JoiningDate).toISOString() : null,
-        address,
-        city,
-        state,
+        name: formData.name,
+        Gender: formData.Gender,
+        DOB: formData.DOB ? new Date(formData.DOB).toISOString() : null,
+        JoiningDate: formData.JoiningDate ? new Date(formData.JoiningDate).toISOString() : null,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        phoneNumber: formData.phoneNumber,
       },
     };
 
@@ -99,15 +164,16 @@ const ProfilePage = () => {
 
       if (res.success) {
         toast.success("Profile updated successfully");
-
-        // Optimistically update UI and let refetch happen in background
         setIsEditing(false);
 
-        if (user.role === "admin" && user.companyId) {
-          updateCompany(user.companyId, companyForm); // Run in background
+        if (user.role === "admin") {
+          if (user.companyId && isCompanyPresent) {
+            await updateCompany(user.companyId, companyForm);
+          } else {
+            const newCompany = await createCompany(companyForm);
+            toast.success("Company created successfully");
+          }
         }
-
-        fetchCurrentUser(); // Background refetch
       } else {
         toast.error(res.error || "Update failed");
       }
@@ -119,7 +185,7 @@ const ProfilePage = () => {
 
   const handleCancel = () => {
     setIsEditing(false);
-
+    const info = userInfo || {};
     const {
       name = "",
       Gender = "",
@@ -128,7 +194,8 @@ const ProfilePage = () => {
       address = "",
       city = "",
       state = "",
-    } = userInfo || {};
+      phoneNumber = "",
+    } = info;
 
     setFormData({
       name,
@@ -138,7 +205,9 @@ const ProfilePage = () => {
       address,
       city,
       state,
+      phoneNumber,
       team: user.team || "",
+      subteam: user.subteam || "", // ✅ included
       totalLeaveDays: user.totalLeaveDays || 0,
     });
 
@@ -150,18 +219,16 @@ const ProfilePage = () => {
     }
   };
 
-  if (!user || !formData) {
-    return <LoadingSpinner />;
-  }
+  if (!user) return <LoadingSpinner />;
+  if (!formData) return <div className="text-center text-gray-500">No profile data found.</div>;
 
   return (
     <div className="max-w-3xl mx-auto p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-1 h-8 bg-blue-600 rounded"></div>
-        <h1 className="text-4xl font-bold text-gray-800">Profile </h1>
+        <h1 className="text-4xl font-bold text-gray-800">Profile</h1>
       </div>
 
-      {/* Avatar and Action Buttons */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold">
@@ -173,31 +240,26 @@ const ProfilePage = () => {
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-3">
-          {!isEditing && (
+          {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow transition-all"
             >
-
               Edit Profile
             </button>
-          )}
-          {isEditing && (
+          ) : (
             <>
               <button
                 onClick={handleSave}
-                className="inline-flex items-center gap-2  bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow transition-all"
-              >
-
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow transition-all"
+                >
                 Save
               </button>
               <button
                 onClick={handleCancel}
                 className="inline-flex items-center gap-2 bg-gray-400 hover:bg-gray-500 text-white font-medium px-4 py-2 rounded-lg shadow transition-all"
-              >
-
+                >
                 Cancel
               </button>
             </>
@@ -205,24 +267,24 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* Sections */}
       <ProfileSection title="Basic Info">
-        <ProfileField label="Name" name="name" value={formData.name} onChange={handleChange} isEditing={isEditing} />
-        <ProfileField label="Birthday" name="DOB" value={formData.DOB} onChange={handleChange} isEditing={isEditing} type="date" />
-        <ProfileField label="Gender" name="Gender" value={formData.Gender} onChange={handleChange} isEditing={isEditing} type="select" />
+        <ProfileField label="Name" name="name" value={formData.name ?? ""} onChange={handleChange} isEditing={isEditing && user.role === "admin"} />
+        <ProfileField label="Birthday" name="DOB" value={formData.DOB ?? ""} onChange={handleChange} isEditing={isEditing && user.role === "admin"} type="date" />
+        <ProfileField label="Gender" name="Gender" value={formData.Gender ?? ""} onChange={handleChange} isEditing={isEditing && user.role === "admin"} type="select" />
       </ProfileSection>
 
       <ProfileSection title="Contact Info">
-        <ProfileField label="Email" value={user.email} isEditing={false} />
-        <ProfileField label="Phone" value="Not set" isEditing={false} />
+        <ProfileField label="Email" value={user.email ?? ""} isEditing={false} />
+        <ProfileField label="Phone" name="phoneNumber" value={formData.phoneNumber ?? ""} onChange={handleChange} isEditing={isEditing && user.role === "admin"} />
       </ProfileSection>
 
       <ProfileSection title="Employment Details">
-        <ProfileField label="Team" name="team" value={formData.team} onChange={handleChange} isEditing={isEditing} />
+        <ProfileField label="Team" name="team" value={formData.team ?? ""} onChange={handleChange} isEditing={isEditing && user.role === "admin"} />
+        <ProfileField label="Subteam" name="subteam" value={formData.subteam ?? ""} onChange={handleChange} isEditing={isEditing} />
         <ProfileField
           label="Total Leave Days"
           name="totalLeaveDays"
-          value={formData.totalLeaveDays}
+          value={formData.totalLeaveDays ?? ""}
           onChange={handleChange}
           isEditing={isEditing && user.role === "admin"}
           type="number"
@@ -230,17 +292,17 @@ const ProfilePage = () => {
         <ProfileField
           label="Joining Date"
           name="JoiningDate"
-          value={formData.JoiningDate}
+          value={formData.JoiningDate ?? ""}
           onChange={handleChange}
-          isEditing={isEditing}
+          isEditing={isEditing && user.role === "admin"}
           type="date"
         />
       </ProfileSection>
 
       <ProfileSection title="Address">
-        <ProfileField label="Address" name="address" value={formData.address} onChange={handleChange} isEditing={isEditing} />
-        <ProfileField label="City" name="city" value={formData.city} onChange={handleChange} isEditing={isEditing} />
-        <ProfileField label="State" name="state" value={formData.state} onChange={handleChange} isEditing={isEditing} />
+        <ProfileField label="Address" name="address" value={formData.address ?? ""} onChange={handleChange} isEditing={isEditing && user.role === "admin"} />
+        <ProfileField label="City" name="city" value={formData.city ?? ""} onChange={handleChange} isEditing={isEditing && user.role === "admin"} />
+        <ProfileField label="State" name="state" value={formData.state ?? ""} onChange={handleChange} isEditing={isEditing && user.role === "admin"} />
       </ProfileSection>
 
       {user.role === "admin" && (
@@ -273,7 +335,7 @@ const ProfileSection = ({ title, children }) => (
   </div>
 );
 
-// Field
+// Field Renderer
 const ProfileField = ({ label, name, value, onChange, isEditing, type = "text" }) => (
   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
     <label className="text-gray-600 font-medium w-full md:w-1/4">{label}</label>
@@ -281,22 +343,22 @@ const ProfileField = ({ label, name, value, onChange, isEditing, type = "text" }
       type === "select" ? (
         <select
           name={name}
-          value={value}
+          value={value ?? ""}
           onChange={onChange}
           className="border rounded px-3 py-1 w-full md:w-3/4 text-sm"
         >
           <option value="">Select</option>
           <option value="Male">Male</option>
           <option value="Female">Female</option>
-          <option value="Other">Other</option>
         </select>
       ) : (
           <input
             type={type}
             name={name}
-            value={value}
+            value={value ?? ""}
             onChange={onChange}
             className="border rounded px-3 py-1 w-full md:w-3/4 text-sm"
+            maxLength={name === "phoneNumber" ? 10 : undefined}
           />
         )
     ) : (

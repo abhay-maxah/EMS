@@ -10,13 +10,14 @@ export default function AddUser() {
     email: "",
     password: "",
     role: "user",
+    team: "",
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
   const navigate = useNavigate();
-  const { addUser,user } = useUserStore();
+  const { addUser, user } = useUserStore();
 
   const validatePassword = (password) => {
     const regex =
@@ -26,9 +27,9 @@ export default function AddUser() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { username, email, password, role } = form;
+    const { username, email, password, role, team } = form;
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !team) {
       toast.error("Please fill in all fields.");
       return;
     }
@@ -47,6 +48,7 @@ export default function AddUser() {
       email,
       password,
       role,
+      team,
       companyId: user?.companyId,
       createdById: user?.id,
     };
@@ -59,7 +61,7 @@ export default function AddUser() {
       toast.error(result.error);
     }
   };
-  
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -176,6 +178,26 @@ export default function AddUser() {
               <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>
+          </div>
+
+          {/* Team (Text Field) */}
+          <div>
+            <label
+              htmlFor="team"
+              className="block mb-1 text-sm font-semibold text-gray-700"
+            >
+              Team
+            </label>
+            <input
+              type="text"
+              name="team"
+              id="team"
+              placeholder="Enter team name"
+              value={form.team}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
           </div>
 
           {/* Submit Button */}

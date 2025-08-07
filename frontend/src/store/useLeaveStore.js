@@ -21,7 +21,7 @@ const useLeaveStore = create((set, get) => ({
     }
   },
   fetchLeavesForAdmin: async (params = { page: 1, limit: 10, userName: undefined, year: 'all' }) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, leaves: [] });
     try {
       const res = await axiosInstance.get('/leaves/AllLeavesForAdmin', {
         params,
