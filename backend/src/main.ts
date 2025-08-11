@@ -22,10 +22,12 @@ async function bootstrap() {
 
   // ✅ Flexible CORS rules
   const allowedOrigins = [
-    /^http:\/\/localhost:\d+$/, // localhost:any-port
-    /^http:\/\/192\.168\.1\.\d+:\d+$/, // local network IPs
-    /^https:\/\/employee-[a-z0-9-]+\.web\.app$/, // Firebase subdomains
+    /^http:\/\/localhost:\d+$/,
+    /^http:\/\/192\.168\.1\.\d+:\d+$/,
+    /^https:\/\/employee-[a-z0-9-]+\.web\.app$/,
+    /^https:\/\/[a-z0-9-]+\.ngrok-free\.app$/, // ✅ Allow ngrok
   ];
+
 
   app.enableCors({
     origin: (origin, callback) => {
