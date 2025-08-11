@@ -20,32 +20,26 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // ✅ Flexible CORS rules
-  const allowedOrigins = [
-    /^http:\/\/localhost:\d+$/,
-    /^http:\/\/192\.168\.1\.\d+:\d+$/,
-    /^https:\/\/employee-[a-z0-9-]+\.web\.app$/,
-    /^https:\/\/[a-z0-9-]+\.ngrok-free\.app$/, // ✅ Allow ngrok
-  ];
-
-
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin) {
-        // No origin: Postman, curl, server-to-server calls
-        return callback(null, true);
-      }
+      if (!origin) return callback(null, true); // Allow Postman/curl with no origin
 
-      const isAllowed = allowedOrigins.some((pattern) => pattern.test(origin));
+      const allowedOrigins = [
+        ' http://localhost:5173/',
+        'http://192.168.1.45:5173/',
+        'https://employee-8a0eb.web.app',
+        'https://c0b9ae57cf6c.ngrok-free.app',
+      ];
+
+      const isAllowed = allowedOrigins.includes(origin);
       if (isAllowed) {
-        return callback(null, true);
+        return callback(null, origin); // ✅ Echo back exact origin (needed for credentials)
       }
 
-      // 🚫 Log rejected origins
       console.warn(`❌ CORS blocked request from: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     },
-    credentials: true,
+    credentials: true, // ✅ Required for cookies/sessions
   });
 
   const configService = app.get(ConfigService);
