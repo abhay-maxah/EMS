@@ -12,6 +12,7 @@ import { validationSchema } from './config/validation-schema';
 import { AttendanceModule } from './attendance/attendance.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CompanyModule } from './company/company.module';
+import { NotificationGatewayModule } from './notification-gateway/notification-gateway.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CompanyModule } from './company/company.module';
     AttendanceModule,
     ScheduleModule.forRoot(),
     CompanyModule,
+    NotificationGatewayModule,
   ],
   controllers: [AppController],
   providers: [AppService],

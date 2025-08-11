@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useUserStore from "../store/useUserStore";
+import logoIcon from "../assets/logo1.png";      // Logo symbol
+import logoText from "../assets/logo.png";  // Logo text
 
 const Navbar = () => {
   const { user, logoutUser } = useUserStore();
@@ -15,20 +17,27 @@ const Navbar = () => {
   };
 
   const linkClass = (path) =>
-    `inline-flex items-center px-3 py-2 text-base rounded-md transition-colors duration-200 ${location.pathname === path
-      ? "text-blue-600 border-b-2 border-blue-500"
-      : "text-gray-700 hover:text-blue-500 hover:border-b-2 hover:border-gray-300"
+     `inline-flex items-center px-3 py-2 text-base rounded-md transition-colors duration-200 ${location.pathname === path
+       ? "text-blue-900 border-b-2 border-blue-900"
+       : "text-gray-700 hover:text-blue-800 hover:border-b-2 hover:border-blue-800"
     }`;
 
   return (
     <nav className="bg-white shadow-md px-4 py-3 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        {/* Brand */}
-        <Link
-          to="/"
-          className="text-2xl font-bold text-blue-600 hover:text-blue-700"
-        >
-          Clockly
+
+        {/* Brand with icon + text image */}
+        <Link to="/" className="flex items-center space-x-2">
+          <img
+            src={logoIcon}
+            alt="Maxah Cronos Logo Icon"
+            className="h-12 w-12 object-contain"
+          />
+          <img
+            src={logoText}
+            alt="Maxah Cronos Logo Text"
+            className="h-8 object-contain"
+          />
         </Link>
 
         {/* Hamburger Button */}
@@ -46,9 +55,6 @@ const Navbar = () => {
               <Link to="/login" className={linkClass("/login")}>
                 Login
               </Link>
-              {/* <Link to="/signup" className={linkClass("/signup")}>
-                Signup
-              </Link> */}
             </>
           ) : (
             <>
@@ -97,43 +103,75 @@ const Navbar = () => {
         <div className="md:hidden mt-2 space-y-1 bg-white rounded shadow px-4 py-3">
           {!user ? (
             <>
-              <Link to="/login" className={linkClass("/login")} onClick={() => setMenuOpen(false)}>
+              <Link
+                to="/login"
+                className={linkClass("/login")}
+                onClick={() => setMenuOpen(false)}
+              >
                 Login
               </Link>
-              {/* <Link to="/signup" className={linkClass("/signup")} onClick={() => setMenuOpen(false)}>
-                Signup
-              </Link> */}
             </>
           ) : (
             <>
-              <Link to="/" className={linkClass("/")} onClick={() => setMenuOpen(false)}>
+                <Link
+                  to="/"
+                  className={linkClass("/")}
+                  onClick={() => setMenuOpen(false)}
+                >
                 Home
               </Link>
-              <Link to="/apply-leave" className={linkClass("/apply-leave")} onClick={() => setMenuOpen(false)}>
+                <Link
+                  to="/apply-leave"
+                  className={linkClass("/apply-leave")}
+                  onClick={() => setMenuOpen(false)}
+                >
                 Apply Leave
               </Link>
-              <Link to="/work-report" className={linkClass("/work-report")} onClick={() => setMenuOpen(false)}>
+                <Link
+                  to="/work-report"
+                  className={linkClass("/work-report")}
+                  onClick={() => setMenuOpen(false)}
+                >
                 View Report
               </Link>
-              <Link to="/past-leaves" className={linkClass("/past-leaves")} onClick={() => setMenuOpen(false)}>
+                <Link
+                  to="/past-leaves"
+                  className={linkClass("/past-leaves")}
+                  onClick={() => setMenuOpen(false)}
+                >
                 Past Leaves
               </Link>
-              <Link to="/profile" className={linkClass("/profile")} onClick={() => setMenuOpen(false)}>
+                <Link
+                  to="/profile"
+                  className={linkClass("/profile")}
+                  onClick={() => setMenuOpen(false)}
+                >
                 Profile
               </Link>
 
               {user.role === "admin" && (
                 <>
-                  <Link to="/all-leaves" className={linkClass("/all-leaves")} onClick={() => setMenuOpen(false)}>
+                    <Link
+                      to="/all-leaves"
+                      className={linkClass("/all-leaves")}
+                      onClick={() => setMenuOpen(false)}
+                    >
                     All Leaves
                   </Link>
-                  <Link to="/all-reports" className={linkClass("/all-reports")} onClick={() => setMenuOpen(false)}>
+                    <Link
+                      to="/all-reports"
+                      className={linkClass("/all-reports")}
+                      onClick={() => setMenuOpen(false)}
+                    >
                     All Reports
                   </Link>
-                  <Link to="/all-users" className={linkClass("/all-users")} onClick={() => setMenuOpen(false)}>
+                    <Link
+                      to="/all-users"
+                      className={linkClass("/all-users")}
+                      onClick={() => setMenuOpen(false)}
+                    >
                     All Users
-                  </Link>
-
+                    </Link>
                 </>
               )}
 

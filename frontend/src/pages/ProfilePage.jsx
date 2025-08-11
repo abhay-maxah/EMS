@@ -170,7 +170,7 @@ const ProfilePage = () => {
           if (user.companyId && isCompanyPresent) {
             await updateCompany(user.companyId, companyForm);
           } else {
-            const newCompany = await createCompany(companyForm);
+            await createCompany(companyForm);
             toast.success("Company created successfully");
           }
         }

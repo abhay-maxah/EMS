@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeaveDto, LeaveDayDto } from './dto/create-leave-dto';
 import { Leave, LeaveStatus, LeaveType, User } from '@prisma/client';
+import { NotificationGateway } from 'src/notification-gateway/notification.gateway';
 type PartialLeave = {
   startDate: Date;
   endDate: Date | null;
@@ -44,19 +45,26 @@ export type LeaveResponseWithUser = {
 
 @Injectable()
 export class LeaveService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationGateway: NotificationGateway,
+  ) {}
   //applyLeave (admin,user)
   async create(userId: string, createLeaveDto: CreateLeaveDto): Promise<Leave> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userInfo: true,
+      },
+    });
+
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found.`);
     }
 
-    // Destructure the DTO to separate `days` and other fields
     const { startDate, endDate, totalLeaveDay, days, leaveType, ...rest } =
       createLeaveDto;
 
-    // Convert date strings from DTO to Date objects for Prisma
     const parsedStartDate = new Date(startDate);
     const parsedEndDate = new Date(endDate);
 
@@ -68,14 +76,11 @@ export class LeaveService {
       throw new BadRequestException('At least one leave day must be provided.');
     }
 
-    // Frontend handles totalLeaveDay calculation, so just validate its presence and value
     if (!totalLeaveDay || totalLeaveDay <= 0) {
       throw new BadRequestException(
         'Total leave day must be a positive number.',
       );
     }
-    // Check against user's remaining leave balance
-    // Only check balance if leave type is NOT UNPAID_LEAVE
 
     if (
       leaveType !== LeaveType.UNPAID_LEAVE &&
@@ -86,15 +91,11 @@ export class LeaveService {
       );
     }
 
-    // Prepare the LeaveDay records for nested creation
-    // Map each LeaveDayDto to the format expected by Prisma's createMany for LeaveDay
     const leaveDaysToCreate = days.map((day: LeaveDayDto) => ({
-      date: new Date(day.date), // Convert the date string to a Date object
-      leaveType: day.dayType, // Use the DayType enum
+      date: new Date(day.date),
+      leaveType: day.dayType,
     }));
 
-    // Create the main Leave record and its associated LeaveDay records
-    // using Prisma's nested write for the 'days' relation.
     const newLeave = await this.prisma.leave.create({
       data: {
         userId,
@@ -102,24 +103,38 @@ export class LeaveService {
         endDate: parsedEndDate,
         totalLeaveDay,
         leaveType,
-        ...rest, // This includes leaveType and reason
+        ...rest,
         appliedAt: new Date(),
         status: LeaveStatus.PENDING,
-        // Nested write for the 'days' relation
         days: {
           createMany: {
-            // Use createMany to insert multiple LeaveDay records efficiently
             data: leaveDaysToCreate,
-            skipDuplicates: true, // Optional: useful if you want to prevent duplicate date/leaveId, though @@unique in schema handles this
+            skipDuplicates: true,
           },
         },
       },
-      // You might want to include the 'days' relation in the returned object
-      // so the client immediately gets the full picture of the created leave.
+    });
+
+    // ✅ Fetch full details for notification
+    const fullLeave = await this.prisma.leave.findUnique({
+      where: { id: newLeave.id },
       include: {
         days: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            userInfo: {
+              select: { name: true },
+            },
+          },
+        },
       },
     });
+
+    // ✅ Send complete leave details to frontend
+    this.notificationGateway.notifyLeaveApplied(fullLeave);
 
     return newLeave;
   }
@@ -254,15 +269,15 @@ export class LeaveService {
       };
     }
 
-   const where = {
-     ...dateFilter,
-     user: {
-       companyId,
-       userName: {
-         contains: userName,
-       },
-     },
-   };
+    const where = {
+      ...dateFilter,
+      user: {
+        companyId,
+        userName: {
+          contains: userName,
+        },
+      },
+    };
 
     // Get paginated leave data
     const data = await this.prisma.leave.findMany({
@@ -372,7 +387,6 @@ export class LeaveService {
     });
 
     if (!leave) throw new NotFoundException('Leave request not found');
-
     if (!leave.totalLeaveDay || leave.totalLeaveDay <= 0) {
       throw new BadRequestException('Invalid leave day count');
     }
@@ -380,46 +394,36 @@ export class LeaveService {
     const currentStatus = leave.status;
     const isUnpaidLeave = leave.leaveType === LeaveType.UNPAID_LEAVE;
 
+    let updatedLeave;
+
     // If status is changing from APPROVED to something else → refund if not unpaid
     if (
       currentStatus === LeaveStatus.APPROVED &&
       status !== LeaveStatus.APPROVED
     ) {
       if (isUnpaidLeave) {
-        return await this.prisma.leave.update({
+        updatedLeave = await this.prisma.leave.update({
           where: { id: leave.id },
-          data: {
-            status,
-            adminNote,
-            approvedRejectedAt: new Date(),
-          },
+          data: { status, adminNote, approvedRejectedAt: new Date() },
         });
-      }
-
-      const [updatedLeave] = await this.prisma.$transaction([
-        this.prisma.leave.update({
-          where: { id: leave.id },
-          data: {
-            status,
-            adminNote,
-            approvedRejectedAt: new Date(),
-          },
-        }),
-        this.prisma.user.update({
-          where: { id: leave.userId },
-          data: {
-            totalLeaveDays: {
-              increment: leave.totalLeaveDay,
+      } else {
+        const [leaveResult] = await this.prisma.$transaction([
+          this.prisma.leave.update({
+            where: { id: leave.id },
+            data: { status, adminNote, approvedRejectedAt: new Date() },
+          }),
+          this.prisma.user.update({
+            where: { id: leave.userId },
+            data: {
+              totalLeaveDays: { increment: leave.totalLeaveDay },
             },
-          },
-        }),
-      ]);
-
-      return updatedLeave;
+          }),
+        ]);
+        updatedLeave = leaveResult;
+      }
     }
-
     // If changing to APPROVED from non-approved → subtract leave if not unpaid
-    if (status === LeaveStatus.APPROVED) {
+    else if (status === LeaveStatus.APPROVED) {
       if (!isUnpaidLeave && leave.user.totalLeaveDays < leave.totalLeaveDay) {
         throw new BadRequestException('Insufficient leave balance');
       }
@@ -439,27 +443,41 @@ export class LeaveService {
         transactionItems.push(
           this.prisma.user.update({
             where: { id: leave.userId },
-            data: {
-              totalLeaveDays: {
-                decrement: leave.totalLeaveDay,
-              },
-            },
+            data: { totalLeaveDays: { decrement: leave.totalLeaveDay } },
           }),
         );
       }
 
-      const [updatedLeave] = await this.prisma.$transaction(transactionItems);
-      return updatedLeave;
+      const [leaveResult] = await this.prisma.$transaction(transactionItems);
+      updatedLeave = leaveResult;
+    }
+    // All other status changes (no balance change)
+    else {
+      updatedLeave = await this.prisma.leave.update({
+        where: { id: leave.id },
+        data: { status, adminNote, approvedRejectedAt: new Date() },
+      });
     }
 
-    // All other status changes (e.g., REJECTED -> PENDING), no balance change
-    return await this.prisma.leave.update({
-      where: { id: leave.id },
-      data: {
-        status,
-        adminNote,
-        approvedRejectedAt: new Date(),
+    // ✅ Fetch full leave with user for notification
+    const fullLeave = await this.prisma.leave.findUnique({
+      where: { id: updatedLeave.id },
+      include: {
+        days: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            userInfo: { select: { name: true } },
+          },
+        },
       },
     });
+
+    // ✅ Send complete leave details to frontend
+    this.notificationGateway.notifyLeaveStatusUpdate(fullLeave);
+
+    return updatedLeave;
   }
 }
