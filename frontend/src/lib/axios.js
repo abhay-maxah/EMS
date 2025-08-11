@@ -16,7 +16,7 @@ const hostname = window.location.hostname;
 const baseURL =
   hostname === "localhost" || hostname.startsWith("192.168.")
     ? `http://${hostname}:3000`
-    : " https://c0b9ae57cf6c.ngrok-free.app"; // ✅ ngrok HTTPS
+    : "https://a6b13a213722.ngrok-free.app"; // ✅ ngrok HTTPS
 
 const axiosInstance = axios.create({
   baseURL,
